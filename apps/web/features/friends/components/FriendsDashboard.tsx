@@ -13,6 +13,7 @@ import {
   CalendarDays,
   Check,
   ChevronDown,
+  Copy,
   Inbox,
   MessageCircle,
   Send,
@@ -45,6 +46,7 @@ import type {
 
 type FriendsDashboardProps = {
   dashboard: FriendsDashboardViewModel;
+  currentUserFriendCode?: string | null;
   locale: string;
 };
 
@@ -55,7 +57,11 @@ type FriendAction = (
 
 const initialState: FriendActionState = {};
 
-export function FriendsDashboard({ dashboard, locale }: FriendsDashboardProps) {
+export function FriendsDashboard({
+  dashboard,
+  currentUserFriendCode = null,
+  locale,
+}: FriendsDashboardProps) {
   const t = getFriendsCopy(locale);
   const [addFriendOpen, setAddFriendOpen] = useState(false);
   const hasIncomingRequests = dashboard.incomingRequests.length > 0;
@@ -153,6 +159,7 @@ export function FriendsDashboard({ dashboard, locale }: FriendsDashboardProps) {
 
       {addFriendOpen ? (
         <AddFriendDialog
+          currentUserFriendCode={currentUserFriendCode}
           locale={locale}
           onClose={() => setAddFriendOpen(false)}
         />
@@ -164,12 +171,14 @@ export function FriendsDashboard({ dashboard, locale }: FriendsDashboardProps) {
 function AddFriendForm({
   className,
   autoFocusSearch = false,
+  currentUserFriendCode = null,
   locale,
   returnTo = "friends",
   showHeader = true,
 }: {
   autoFocusSearch?: boolean;
   className?: string;
+  currentUserFriendCode?: string | null;
   locale: string;
   returnTo?: "friends" | "messages";
   showHeader?: boolean;
@@ -201,9 +210,13 @@ function AddFriendForm({
         <p className="text-sm leading-6 text-zinc-600">{t.addDescription}</p>
       )}
 
+      {currentUserFriendCode ? (
+        <OwnFriendCodeBlock friendCode={currentUserFriendCode} locale={locale} />
+      ) : null}
+
       <form
         action={formAction}
-        className={cn("grid gap-4", showHeader && "mt-4")}
+        className="mt-4 grid gap-4"
         noValidate
       >
         <input name="locale" type="hidden" value={locale} />
@@ -250,10 +263,12 @@ function AddFriendForm({
 }
 
 export function AddFriendDialog({
+  currentUserFriendCode = null,
   locale,
   onClose,
   returnTo = "friends",
 }: {
+  currentUserFriendCode?: string | null;
   locale: string;
   onClose: () => void;
   returnTo?: "friends" | "messages";
@@ -275,7 +290,7 @@ export function AddFriendDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/35 p-3 sm:items-center sm:p-6"
+      className="fixed inset-0 z-50 flex items-stretch justify-center bg-paper sm:items-center sm:bg-black/35 sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
@@ -285,7 +300,7 @@ export function AddFriendDialog({
         }
       }}
     >
-      <div className="max-h-[calc(100dvh-1.5rem)] w-full max-w-xl overflow-hidden rounded-2xl bg-paper shadow-2xl ring-1 ring-black/10 sm:max-h-[calc(100dvh-3rem)] sm:rounded-xl">
+      <div className="flex h-dvh w-full flex-col overflow-hidden bg-paper sm:h-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-xl sm:rounded-xl sm:shadow-2xl sm:ring-1 sm:ring-black/10">
         <div className="flex items-center justify-between border-b border-black/10 px-4 py-4 sm:px-5">
           <div className="min-w-0">
             <p className="text-sm font-medium text-moss">{t.entryTitle}</p>
@@ -306,16 +321,62 @@ export function AddFriendDialog({
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="max-h-[calc(100dvh-7rem)] overflow-y-auto p-4 sm:max-h-[calc(100dvh-9rem)] sm:p-5">
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:max-h-[calc(100dvh-9rem)] sm:p-5">
           <AddFriendForm
             autoFocusSearch
             className="border-0 bg-transparent p-0 shadow-none"
+            currentUserFriendCode={currentUserFriendCode}
             locale={locale}
             returnTo={returnTo}
             showHeader={false}
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+function OwnFriendCodeBlock({
+  friendCode,
+  locale,
+}: {
+  friendCode: string;
+  locale: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  const t = getFriendsCopy(locale);
+
+  async function copyFriendCode() {
+    try {
+      await navigator.clipboard.writeText(friendCode);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1400);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-black/10 bg-white/75 px-3 py-3">
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-zinc-500">{t.ownFriendCode}</p>
+        <p className="mt-1 font-mono text-lg font-semibold tracking-[0.18em] text-ink">
+          {friendCode}
+        </p>
+      </div>
+      <button
+        type="button"
+        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm ring-1 ring-black/10 transition hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300"
+        aria-label={copied ? t.ownFriendCodeCopied : t.copyOwnFriendCode}
+        title={copied ? t.ownFriendCodeCopied : t.copyOwnFriendCode}
+        onClick={copyFriendCode}
+      >
+        {copied ? (
+          <Check className="h-4 w-4 text-moss" />
+        ) : (
+          <Copy className="h-4 w-4" />
+        )}
+      </button>
     </div>
   );
 }

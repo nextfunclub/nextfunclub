@@ -42,6 +42,7 @@ export default async function LocaleLayout({
           locale={locale}
           showNotificationNav={Boolean(viewerProfile)}
           showAdminNav={showAdminNav}
+          viewerFriendCode={viewerProfile?.friendCode ?? null}
           unreadNotificationCount={unreadNotificationCount}
         />
         {children}

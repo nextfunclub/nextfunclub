@@ -7,6 +7,8 @@ import { useClerk, useUser } from "@clerk/nextjs";
 import {
   Bell,
   Building2,
+  Check,
+  Copy,
   LayoutDashboard,
   LogOut,
   MessageCircle,
@@ -22,19 +24,23 @@ type AccountMenuProps = {
   locale: string;
   showAdminLink?: boolean;
   unreadNotificationCount?: number;
+  viewerFriendCode?: string | null;
 };
 
 export function AccountMenu({
   locale,
   showAdminLink = false,
   unreadNotificationCount = 0,
+  viewerFriendCode = null,
 }: AccountMenuProps) {
   const { signOut, openUserProfile } = useClerk();
   const { user } = useUser();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [friendCodeCopied, setFriendCodeCopied] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const t = getCopy(locale).accountMenu;
+  const profileCopy = getCopy(locale).profile;
 
   const displayName =
     user?.fullName ||
@@ -82,6 +88,18 @@ export function AccountMenu({
     setOpen(false);
   }
 
+  async function copyFriendCode() {
+    if (!viewerFriendCode) return;
+
+    try {
+      await navigator.clipboard.writeText(viewerFriendCode);
+      setFriendCodeCopied(true);
+      window.setTimeout(() => setFriendCodeCopied(false), 1400);
+    } catch {
+      setFriendCodeCopied(false);
+    }
+  }
+
   return (
     <div ref={menuRef} className="relative">
       <button
@@ -118,6 +136,37 @@ export function AccountMenu({
               </p>
               {email ? (
                 <p className="truncate text-xs text-zinc-500">{email}</p>
+              ) : null}
+              {viewerFriendCode ? (
+                <div className="mt-2 flex min-w-0 items-center gap-2">
+                  <span className="shrink-0 text-xs text-zinc-500">
+                    {profileCopy.friendCodeLabel}
+                  </span>
+                  <span className="min-w-0 font-mono text-xs font-semibold tracking-[0.16em] text-ink">
+                    {viewerFriendCode}
+                  </span>
+                  <button
+                    type="button"
+                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-50 text-zinc-600 ring-1 ring-black/10 transition hover:bg-white hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300"
+                    aria-label={
+                      friendCodeCopied
+                        ? profileCopy.friendCodeCopied
+                        : profileCopy.copyFriendCode
+                    }
+                    title={
+                      friendCodeCopied
+                        ? profileCopy.friendCodeCopied
+                        : profileCopy.copyFriendCode
+                    }
+                    onClick={copyFriendCode}
+                  >
+                    {friendCodeCopied ? (
+                      <Check className="h-3.5 w-3.5 text-moss" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </div>
               ) : null}
             </div>
           </div>

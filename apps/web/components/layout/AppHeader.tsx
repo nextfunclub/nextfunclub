@@ -22,6 +22,7 @@ type AppHeaderProps = {
   showNotificationNav?: boolean;
   showAdminNav?: boolean;
   unreadNotificationCount?: number;
+  viewerFriendCode?: string | null;
 };
 
 export function AppHeader({
@@ -29,14 +30,15 @@ export function AppHeader({
   showNotificationNav = false,
   showAdminNav = false,
   unreadNotificationCount = 0,
+  viewerFriendCode = null,
 }: AppHeaderProps) {
   const t = getCopy(locale);
   return (
     <header className="sticky top-0 z-40 border-b border-black/10 bg-paper/85 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link
           href={withLocale(locale, "/")}
-          className="flex items-center gap-2"
+          className="flex shrink-0 items-center gap-2"
         >
           <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-paper shadow-sm ring-1 ring-black/10">
             <Image
@@ -48,7 +50,7 @@ export function AppHeader({
               priority
             />
           </span>
-          <span className="hidden text-sm font-semibold tracking-normal sm:inline">
+          <span className="hidden whitespace-nowrap text-sm font-semibold tracking-normal sm:inline">
             Next Fun Club
           </span>
         </Link>
@@ -110,6 +112,7 @@ export function AppHeader({
           <UserMenu
             locale={locale}
             showAdminLink={showAdminNav}
+            viewerFriendCode={viewerFriendCode}
             unreadNotificationCount={unreadNotificationCount}
           />
         </div>

@@ -1,26 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useState, type ReactNode } from "react";
-import { useFormStatus } from "react-dom";
+import { useState } from "react";
 import {
   CalendarDays,
   ChevronDown,
-  Send,
   UserPlus,
-  X,
 } from "lucide-react";
 import {
   formatActivityDate,
   formatActivityDateOnly,
 } from "@chill-club/shared";
-import { Button, Input, Textarea } from "@chill-club/ui";
+import { Button } from "@chill-club/ui";
 import { withLocale } from "@/lib/routes";
-import {
-  sendFriendRequestAction,
-  type FriendActionState,
-} from "@/features/friends/actions/friendActions";
-import { getFriendsCopy } from "@/features/friends/copy";
+import { AddFriendDialog } from "@/features/friends/components/FriendsDashboard";
 import { openDirectConversationAction } from "../actions/directMessageActions";
 import { getDirectMessagesCopy } from "../copy";
 import type {
@@ -31,14 +24,14 @@ import { MessageAvatar } from "./MessageAvatar";
 
 type MobileFriendChatRosterProps = {
   currentUserProfileId: string;
+  currentUserFriendCode?: string | null;
   friends: DirectMessageFriendRosterItemViewModel[];
   locale: string;
 };
 
-const initialFriendState: FriendActionState = {};
-
 export function MobileFriendChatRoster({
   currentUserProfileId,
+  currentUserFriendCode = null,
   friends,
   locale,
 }: MobileFriendChatRosterProps) {
@@ -100,9 +93,11 @@ export function MobileFriendChatRoster({
       )}
 
       {addFriendOpen ? (
-        <AddFriendFullScreenModal
+        <AddFriendDialog
+          currentUserFriendCode={currentUserFriendCode}
           locale={locale}
           onClose={() => setAddFriendOpen(false)}
+          returnTo="messages"
         />
       ) : null}
     </section>
@@ -247,124 +242,5 @@ function MobileActivitySignalRow({
       <CalendarDays className="h-3.5 w-3.5 shrink-0 text-moss" />
       <span className="truncate">{label}</span>
     </Link>
-  );
-}
-
-function AddFriendFullScreenModal({
-  locale,
-  onClose,
-}: {
-  locale: string;
-  onClose: () => void;
-}) {
-  const [state, formAction] = useActionState(
-    sendFriendRequestAction,
-    initialFriendState,
-  );
-  const t = getFriendsCopy(locale);
-  const titleId = "message-add-friend-dialog-title";
-
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
-
-  return (
-    <div
-      className="fixed inset-0 z-50 bg-paper md:hidden"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={titleId}
-    >
-      <div className="flex min-h-dvh flex-col">
-        <div className="flex items-center justify-between border-b border-black/10 px-4 py-4">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-moss">
-              {t.entryTitle}
-            </p>
-            <h2 id={titleId} className="mt-1 text-xl font-semibold text-ink">
-              {t.addTitle}
-            </h2>
-          </div>
-          <button
-            type="button"
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm ring-1 ring-black/10"
-            aria-label={t.close}
-            title={t.close}
-            onClick={onClose}
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <form action={formAction} className="grid gap-4 px-4 py-5" noValidate>
-          <input name="locale" type="hidden" value={locale} />
-          <input name="returnTo" type="hidden" value="messages" />
-          <p className="text-sm leading-6 text-zinc-600">{t.addDescription}</p>
-          <label className="grid gap-2">
-            <span className="text-sm font-medium text-zinc-700">
-              {t.searchLabel}
-            </span>
-            <Input
-              name="searchTerm"
-              placeholder={t.searchPlaceholder}
-              autoComplete="off"
-              autoFocus
-              className="h-12 bg-white"
-            />
-            <span className="text-xs leading-5 text-zinc-500">
-              {t.searchHint}
-            </span>
-          </label>
-          <label className="grid gap-2">
-            <span className="text-sm font-medium text-zinc-700">
-              {t.messageLabel}
-            </span>
-            <Textarea
-              name="message"
-              maxLength={240}
-              placeholder={t.messagePlaceholder}
-              className="min-h-28 resize-none bg-white"
-            />
-          </label>
-          {state.formError ? <FormError message={state.formError} /> : null}
-          <FriendSubmitButton pendingLabel={t.sending}>
-            {t.send}
-          </FriendSubmitButton>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-function FriendSubmitButton({
-  children,
-  pendingLabel,
-}: {
-  children: ReactNode;
-  pendingLabel: string;
-}) {
-  const { pending } = useFormStatus();
-
-  return (
-    <Button type="submit" disabled={pending} className="h-12 gap-2">
-      <Send className="h-4 w-4" />
-      {pending ? pendingLabel : children}
-    </Button>
-  );
-}
-
-function FormError({ message }: { message: string }) {
-  return (
-    <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-      {message}
-    </p>
   );
 }

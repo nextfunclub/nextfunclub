@@ -70,6 +70,7 @@ export default async function MessageThreadPage({
         ) : (
           <DesktopFriendRosterPanel
             currentUserProfileId={profile.id}
+            currentUserFriendCode={profile.friendCode}
             friends={friendRosterResult.friends}
             locale={locale}
             selectedConversationId={conversationResult.conversation.id}
