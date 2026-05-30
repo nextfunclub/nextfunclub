@@ -18,6 +18,9 @@ const isProtectedRoute = createRouteMatcher([
 const isAdminPageRoute = createRouteMatcher(["/:locale/admin(.*)"]);
 const isAdminApiRoute = createRouteMatcher(["/api/admin(.*)"]);
 const isUploadApiRoute = createRouteMatcher(["/api/uploads(.*)"]);
+const isActivityLinkPreviewRoute = createRouteMatcher([
+  "/api/activity-link-preview",
+]);
 
 export default clerkMiddleware(async (auth, request) => {
   if (hasClerkKeys() && isProtectedRoute(request)) {
@@ -50,12 +53,12 @@ export default clerkMiddleware(async (auth, request) => {
     }
   }
 
-  if (isUploadApiRoute(request)) {
+  if (isUploadApiRoute(request) || isActivityLinkPreviewRoute(request)) {
     if (hasClerkKeys()) {
       const { userId } = await auth();
 
       if (!userId) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
       }
     }
 
@@ -70,5 +73,6 @@ export const config = {
     "/((?!api|_next|_vercel|.*\\..*).*)",
     "/api/admin/:path*",
     "/api/uploads/:path*",
+    "/api/activity-link-preview",
   ],
 };

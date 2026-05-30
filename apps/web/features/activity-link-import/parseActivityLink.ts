@@ -1,11 +1,16 @@
 import type { ActivityCategory, PriceType } from "@chill-club/shared";
+import {
+  activityLinkImportUserAgent,
+  parsePlayInParisEventHtml,
+  parseSortirAParisArticleHtml,
+  type ScrapedActivity,
+} from "@chill-club/scraper-core";
 import { formatParisDateTimeInput } from "@/features/activities/actions/activityActionUtils";
 
-const requestTimeoutMs = 8_000;
+const requestTimeoutMs = 12_000;
 const maxHtmlLength = 600_000;
 
-const supportedHosts = new Map<string, string>([
-  ["paris.fr", "Paris.fr"],
+const supportedHosts: [string, string][] = [
   ["quefaire.paris.fr", "Que Faire a Paris"],
   ["opendata.paris.fr", "Paris OpenData"],
   ["sortiraparis.com", "Sortir a Paris"],
@@ -13,7 +18,8 @@ const supportedHosts = new Map<string, string>([
   ["eventbrite.fr", "Eventbrite"],
   ["billetweb.fr", "Billetweb"],
   ["meetup.com", "Meetup"],
-]);
+  ["paris.fr", "Paris.fr"],
+];
 
 type ActivityLinkImportLocaleCopy = {
   externalPriceText: string;
@@ -130,8 +136,20 @@ function getSupportedSiteName(url: URL) {
   return null;
 }
 
+function getLinkImportHostKey(url: URL) {
+  const normalizedHost = normalizeHost(url.hostname);
+
+  for (const [host] of supportedHosts) {
+    if (normalizedHost === host || normalizedHost.endsWith(`.${host}`)) {
+      return host;
+    }
+  }
+
+  return null;
+}
+
 export function getSupportedActivityLinkHosts() {
-  return Array.from(supportedHosts.keys());
+  return supportedHosts.map(([host]) => host);
 }
 
 function getLocaleCopy(
@@ -321,15 +339,48 @@ function isEventJsonLd(value: JsonLdObject) {
   return typeValues.some((item) => String(item).toLowerCase() === "event");
 }
 
-function getJsonLdImage(value: unknown, baseUrl: URL): string | undefined {
+function resolveJsonLdNodeImage(
+  objects: JsonLdObject[],
+  value: unknown,
+  baseUrl: URL,
+): string | undefined {
+  if (typeof value === "object" && value !== null && "@id" in value) {
+    const id = getText((value as JsonLdObject)["@id"]);
+
+    if (id) {
+      for (const node of objects.filter((item) => item["@id"] === id)) {
+        const resolved = getJsonLdImage(node, baseUrl, objects);
+
+        if (resolved) {
+          return resolved;
+        }
+      }
+    }
+  }
+
+  return getJsonLdImage(value, baseUrl, objects);
+}
+
+function getJsonLdImage(
+  value: unknown,
+  baseUrl: URL,
+  objects: JsonLdObject[] = [],
+): string | undefined {
   if (Array.isArray(value)) {
-    return value.map((item) => getJsonLdImage(item, baseUrl)).find(Boolean);
+    return value
+      .map((item) => getJsonLdImage(item, baseUrl, objects))
+      .find(Boolean);
   }
 
   if (typeof value === "object" && value !== null) {
     const imageObject = value as JsonLdObject;
 
-    return getAbsoluteUrl(imageObject.url ?? imageObject.contentUrl, baseUrl);
+    return (
+      getAbsoluteUrl(
+        imageObject.url ?? imageObject.contentUrl ?? imageObject.thumbnailUrl,
+        baseUrl,
+      ) ?? resolveJsonLdNodeImage(objects, imageObject, baseUrl)
+    );
   }
 
   return getAbsoluteUrl(value, baseUrl);
@@ -540,7 +591,8 @@ function parseJsonLdEvent(
   baseUrl: URL,
   copy: ActivityLinkImportLocaleCopy,
 ): ParsedEvent {
-  const event = extractJsonLdObjects(html).find(isEventJsonLd);
+  const objects = extractJsonLdObjects(html);
+  const event = objects.find(isEventJsonLd);
 
   if (!event) {
     return {};
@@ -554,13 +606,116 @@ function parseJsonLdEvent(
     city: location.city,
     description: stripHtml(getText(event.description)),
     endAt: normalizeDateInput(event.endDate),
-    image: getJsonLdImage(event.image, baseUrl),
+    image: resolveJsonLdNodeImage(objects, event.image, baseUrl),
     locationName: location.locationName,
     priceText: offer.priceText,
     priceType: offer.priceType,
     startAt: normalizeDateInput(event.startDate),
     title: getText(event.name),
   };
+}
+
+function mapScrapedPriceText(
+  priceText: string,
+  copy: ActivityLinkImportLocaleCopy,
+): { priceText: string; priceType: PriceType } {
+  if (/免费|gratuit|free/i.test(priceText)) {
+    return { priceText: copy.freePriceText, priceType: "FREE" };
+  }
+
+  if (/查看原文|check the external/i.test(priceText)) {
+    return { priceText: copy.externalPriceText, priceType: "RANGE" };
+  }
+
+  return { priceText, priceType: "FIXED" };
+}
+
+function buildPreviewFromScrapedActivity(
+  activity: ScrapedActivity,
+  siteName: string,
+  html: string,
+  sourceUrl: URL,
+  copy: ActivityLinkImportLocaleCopy,
+): ActivityLinkPreview {
+  const price = mapScrapedPriceText(activity.priceText, copy);
+  const meta = extractMeta(html);
+  const coverImageUrl =
+    activity.coverImageUrl ??
+    getAbsoluteUrl(
+      meta.get("og:image") || meta.get("twitter:image"),
+      sourceUrl,
+    );
+  const values: ActivityLinkPreviewValues = {
+    address: activity.address
+      ? truncateText(activity.address, 120)
+      : undefined,
+    category: activity.category,
+    city: activity.city,
+    coverImageUrl,
+    description: buildDescription(
+      stripHtml(activity.description),
+      activity.sourceUrl,
+      copy,
+    ),
+    endAt: activity.endAt
+      ? formatParisDateTimeInput(activity.endAt)
+      : undefined,
+    itinerary: activity.itinerary ?? "",
+    priceText: price.priceText,
+    priceType: price.priceType,
+    startAt: formatParisDateTimeInput(activity.startAt),
+    title: truncateText(stripHtml(activity.title), 80),
+    type: "LOCAL",
+  };
+
+  return {
+    missingFields: getMissingFields(values),
+    siteName,
+    sourceUrl: activity.sourceUrl,
+    values,
+  };
+}
+
+function buildSiteSpecificPreview(
+  sourceUrl: URL,
+  siteName: string,
+  html: string,
+  copy: ActivityLinkImportLocaleCopy,
+): ActivityLinkPreview | null {
+  const hostKey = getLinkImportHostKey(sourceUrl);
+
+  if (hostKey === "sortiraparis.com") {
+    const activity = parseSortirAParisArticleHtml(html, sourceUrl.toString());
+
+    return activity
+      ? buildPreviewFromScrapedActivity(
+          activity,
+          siteName,
+          html,
+          sourceUrl,
+          copy,
+        )
+      : null;
+  }
+
+  if (
+    hostKey === "playinparis.com" &&
+    /\/event\//i.test(sourceUrl.pathname)
+  ) {
+    const activity = parsePlayInParisEventHtml(html, sourceUrl.toString());
+
+    return activity
+      ? buildPreviewFromScrapedActivity(
+          activity,
+          siteName,
+          html,
+          sourceUrl,
+          copy,
+        )
+      : null;
+  }
+
+  return null;
 }
 
 function mapCategory(input: string): ActivityCategory {
@@ -773,8 +928,9 @@ export async function parseActivityLink(
 
   const response = await fetch(sourceUrl, {
     headers: {
-      Accept: "text/html,application/xhtml+xml,application/json",
-      "User-Agent": "NextFunClub/1.0 activity-link-import",
+      Accept:
+        "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
+      "User-Agent": activityLinkImportUserAgent,
     },
     cache: "no-store",
     signal: AbortSignal.timeout(requestTimeoutMs),
@@ -804,6 +960,16 @@ export async function parseActivityLink(
   }
 
   const html = (await response.text()).slice(0, maxHtmlLength);
+  const siteSpecificPreview = buildSiteSpecificPreview(
+    sourceUrl,
+    siteName,
+    html,
+    copy,
+  );
+
+  if (siteSpecificPreview) {
+    return siteSpecificPreview;
+  }
 
   return buildPreview(sourceUrl, siteName, html, copy);
 }

@@ -448,7 +448,7 @@ const copy = {
       linkImportErrors: {
         INVALID_URL: "请输入有效的 https 链接。",
         UNSUPPORTED_HOST:
-          "暂不支持这个网站。请先使用 Paris.fr、Que Faire à Paris、Sortir à Paris、Eventbrite、Billetweb 或 Meetup 链接。",
+          "暂不支持这个网站。请先使用 Paris.fr、Que Faire à Paris、Sortir à Paris、Play in Paris、Eventbrite、Billetweb 或 Meetup 链接。",
         UNSUPPORTED_CONTENT: "这个链接不是可解析的活动页面。",
         FETCH_FAILED: "链接解析失败，请稍后重试或手动填写。",
         UNAUTHORIZED: "请登录后再解析链接。",
@@ -1013,7 +1013,7 @@ const copy = {
       linkImportErrors: {
         INVALID_URL: "Enter a valid https link.",
         UNSUPPORTED_HOST:
-          "This website is not supported yet. Use Paris.fr, Que Faire a Paris, Sortir a Paris, Eventbrite, Billetweb, or Meetup.",
+          "This website is not supported yet. Use Paris.fr, Que Faire a Paris, Sortir a Paris, Play in Paris, Eventbrite, Billetweb, or Meetup.",
         UNSUPPORTED_CONTENT: "This link is not a parsable activity page.",
         FETCH_FAILED:
           "Failed to parse the link. Try again later or fill the form manually.",
@@ -1603,7 +1603,7 @@ const copy = {
       linkImportErrors: {
         INVALID_URL: "Saisissez un lien https valide.",
         UNSUPPORTED_HOST:
-          "Ce site n'est pas encore pris en charge. Utilisez Paris.fr, Que Faire a Paris, Sortir a Paris, Eventbrite, Billetweb ou Meetup.",
+          "Ce site n'est pas encore pris en charge. Utilisez Paris.fr, Que Faire a Paris, Sortir a Paris, Play in Paris, Eventbrite, Billetweb ou Meetup.",
         UNSUPPORTED_CONTENT:
           "Ce lien n'est pas une page d'activité analysable.",
         FETCH_FAILED:

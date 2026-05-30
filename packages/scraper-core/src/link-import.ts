@@ -1,0 +1,499 @@
+import { createHash } from "node:crypto";
+import type { ScrapedActivity } from "./types";
+
+function sha1(input: string) {
+  return createHash("sha1").update(input).digest("hex");
+}
+
+function makeStableId(source: string, url: string) {
+  return `${source}_${sha1(url).slice(0, 16)}`;
+}
+
+function normalizeWhitespace(input: string) {
+  return input.replace(/\s+/g, " ").trim();
+}
+
+function decodeHtmlEntities(input: string) {
+  const entityMap: Record<string, string> = {
+    amp: "&",
+    lt: "<",
+    gt: ">",
+    quot: '"',
+    apos: "'",
+    nbsp: " ",
+  };
+
+  return input.replace(
+    /&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g,
+    (_, entity: string) => {
+      if (entity.startsWith("#x") || entity.startsWith("#X")) {
+        return String.fromCodePoint(Number.parseInt(entity.slice(2), 16));
+      }
+      if (entity.startsWith("#")) {
+        return String.fromCodePoint(Number.parseInt(entity.slice(1), 10));
+      }
+      return entityMap[entity] ?? _;
+    },
+  );
+}
+
+function stripHtml(input: string) {
+  const decoded = decodeHtmlEntities(input)
+    .replace(/\\[rn]/g, " ")
+    .replace(/\\t/g, " ");
+  return normalizeWhitespace(
+    decoded
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, " "),
+  );
+}
+
+function extractMetaContent(html: string, keys: string[]) {
+  const normalizedKeys = new Set(keys.map((key) => key.toLowerCase()));
+
+  for (const match of html.matchAll(/<meta\b[^>]*>/gi)) {
+    const attrs: Record<string, string> = {};
+
+    for (const attrMatch of match[0].matchAll(
+      /([a-zA-Z_:.-]+)\s*=\s*("([^"]*)"|'([^']*)')/g,
+    )) {
+      attrs[attrMatch[1].toLowerCase()] = decodeHtmlEntities(
+        attrMatch[3] ?? attrMatch[4] ?? "",
+      );
+    }
+
+    const key = (attrs.property || attrs.name || "").toLowerCase();
+    const content = attrs.content;
+
+    if (key && content && normalizedKeys.has(key)) {
+      return content;
+    }
+  }
+
+  return null;
+}
+
+function extractSortirArticleImage(html: string, articleImage: unknown) {
+  const carouselMatch = html.match(
+    /data-src="(https:\/\/cdn\.sortiraparis\.com\/images\/\d+\/[^"]+)"/i,
+  );
+
+  return (
+    normalizeExternalImageUrl(carouselMatch?.[1]) ??
+    normalizeExternalImageUrl(extractItempropMetaContent(html, "image")) ??
+    normalizeExternalImageUrl(articleImage) ??
+    extractPageImageUrl(html)
+  );
+}
+
+function parseJsonLdBlocks(html: string) {
+  const blocks: unknown[] = [];
+  for (const match of html.matchAll(
+    /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
+  )) {
+    const raw = match[1].trim();
+    if (!raw) continue;
+    try {
+      blocks.push(JSON.parse(raw));
+    } catch {
+      // ignore
+    }
+  }
+  return blocks;
+}
+
+function collectJsonLdNodes(node: unknown, output: Record<string, unknown>[]) {
+  if (!node) return;
+  if (Array.isArray(node)) {
+    node.forEach((item) => collectJsonLdNodes(item, output));
+    return;
+  }
+  if (typeof node !== "object") return;
+  const value = node as Record<string, unknown>;
+  output.push(value);
+  collectJsonLdNodes(value["@graph"], output);
+  for (const child of Object.values(value)) {
+    if (child !== value["@graph"]) {
+      collectJsonLdNodes(child, output);
+    }
+  }
+}
+
+function flattenJsonLd(html: string) {
+  const nodes: Record<string, unknown>[] = [];
+  for (const block of parseJsonLdBlocks(html)) {
+    collectJsonLdNodes(block, nodes);
+  }
+  return nodes;
+}
+
+function hasJsonLdType(value: Record<string, unknown>, typeName: string) {
+  const type = value["@type"];
+  const values = Array.isArray(type) ? type : [type];
+  return values.some(
+    (item) => String(item).toLowerCase() === typeName.toLowerCase(),
+  );
+}
+
+function parseDateTimeString(value: string) {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+export function parseChineseDate(
+  text: string,
+  referenceYear = new Date().getFullYear(),
+) {
+  const normalized = text
+    .replace(/\s+/g, "")
+    .replace(/\uFF0F/g, "/")
+    .replace(/\u2013|\u2014|\u2212/g, "-");
+  const rangeMatch = normalized.match(
+    /(?:(\d{4})年)?(\d{1,2})月(\d{1,2})日(?:至|到|-|与)(?:(\d{4})年)?(?:(\d{1,2})月)?(\d{1,2})日/,
+  );
+  if (rangeMatch) {
+    const [, yearA, monthA, dayA, yearB, monthB, dayB] = rangeMatch;
+    const startYear = Number(yearA ?? yearB ?? referenceYear);
+    const endYear = Number(yearB ?? yearA ?? startYear);
+    const endMonth = Number(monthB ?? monthA) - 1;
+    const start = new Date(
+      Date.UTC(startYear, Number(monthA) - 1, Number(dayA), 9, 0, 0),
+    );
+    const end = new Date(Date.UTC(endYear, endMonth, Number(dayB), 18, 0, 0));
+    return { start, end };
+  }
+  const singleMatch = normalized.match(/(?:(\d{4})年)?(\d{1,2})月(\d{1,2})日/);
+  if (singleMatch) {
+    const [, year, month, day] = singleMatch;
+    return {
+      start: new Date(
+        Date.UTC(
+          Number(year ?? referenceYear),
+          Number(month) - 1,
+          Number(day),
+          9,
+          0,
+          0,
+        ),
+      ),
+      end: null,
+    };
+  }
+  return null;
+}
+
+function extractItempropMetaContent(html: string, prop: string) {
+  const patterns = [
+    new RegExp(
+      `<meta\\s+[^>]*itemprop=["']${prop}["'][^>]*content=["']([^"']+)["']`,
+      "i",
+    ),
+    new RegExp(
+      `<meta\\s+[^>]*content=["']([^"']+)["'][^>]*itemprop=["']${prop}["']`,
+      "i",
+    ),
+  ];
+
+  for (const pattern of patterns) {
+    const match = html.match(pattern);
+    if (match?.[1]) {
+      return decodeHtmlEntities(match[1].trim());
+    }
+  }
+
+  return null;
+}
+
+function extractPageImageUrl(html: string) {
+  return (
+    extractMetaContent(html, ["og:image", "twitter:image"]) ??
+    extractItempropMetaContent(html, "image") ??
+    null
+  );
+}
+
+function extractItempropText(html: string, prop: string) {
+  const match = html.match(
+    new RegExp(
+      `<[^>]+itemprop=["']${prop}["'][^>]*>([^<]+)<`,
+      "i",
+    ),
+  );
+  return match?.[1] ? decodeHtmlEntities(match[1].trim()) : null;
+}
+
+function extractSortirMicrodata(html: string) {
+  const startDate = extractItempropMetaContent(html, "startDate");
+  const endDate = extractItempropMetaContent(html, "endDate");
+  const placeName = extractItempropText(html, "name");
+  const street = extractItempropText(html, "streetAddress");
+  const postalCode = extractItempropText(html, "postalCode");
+  const locality = extractItempropText(html, "addressLocality");
+  const addressParts = [placeName, street, postalCode, locality].filter(
+    Boolean,
+  );
+
+  return {
+    startAt: startDate ? parseDateTimeString(startDate) : null,
+    endAt: endDate ? parseDateTimeString(endDate) : null,
+    address: addressParts.length > 0 ? addressParts.join(" · ") : null,
+  };
+}
+
+function normalizeExternalImageUrl(value: unknown): string | null {
+  if (typeof value === "string") {
+    const rawUrl = value.trim();
+    if (!rawUrl) return null;
+    try {
+      const url = new URL(rawUrl);
+      return ["http:", "https:"].includes(url.protocol) ? url.toString() : null;
+    } catch {
+      return null;
+    }
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const url = normalizeExternalImageUrl(item);
+      if (url) return url;
+    }
+  }
+
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return (
+      normalizeExternalImageUrl(record.url) ??
+      normalizeExternalImageUrl(record.contentUrl) ??
+      normalizeExternalImageUrl(record.thumbnailUrl)
+    );
+  }
+
+  return null;
+}
+
+function resolveJsonLdImage(
+  nodes: Record<string, unknown>[],
+  image: unknown,
+): string | null {
+  if (typeof image === "object" && image !== null && "@id" in image) {
+    const id = String((image as Record<string, unknown>)["@id"] ?? "").trim();
+
+    if (id) {
+      for (const node of nodes.filter((item) => item["@id"] === id)) {
+        const resolved = normalizeExternalImageUrl(node);
+        if (resolved) {
+          return resolved;
+        }
+      }
+    }
+  }
+
+  return normalizeExternalImageUrl(image);
+}
+
+function guessCategory(text: string): ScrapedActivity["category"] {
+  const value = text.toLowerCase();
+  if (/(桌游|board\s*game|jenga|狼人杀|卡牌)/i.test(value)) return "BOARD_GAME";
+  if (/(电影|cinema|movie|film)/i.test(value)) return "MOVIE";
+  if (/(音乐|concert|live|dj|k-pop|kpop|festival|show|opera)/i.test(value))
+    return "MUSIC";
+  if (/(运动|sport|run|fitness|yoga|tennis|足球|篮球|游泳)/i.test(value))
+    return "SPORTS";
+  if (/(旅行|walk|city\s*walk|tour|travel|hike|voyage|漫步|散步)/i.test(value))
+    return "TRAVEL";
+  if (
+    /(美食|food|wine|drink|restaurant|café|cafe|brunch|dinner|cooking|餐|吃)/i.test(
+      value,
+    )
+  )
+    return "FOOD";
+  if (/(展|exhibition|museum|gallery|art|博物馆|艺术)/i.test(value))
+    return "EXHIBITION";
+  return "OTHER";
+}
+
+function guessPriceType(priceText: string): ScrapedActivity["priceType"] {
+  const value = priceText.toLowerCase();
+  if (!value || /free|免费|0\s*€|0\s*eur|gratuit/.test(value)) return "FREE";
+  if (/aa|split|各自|均摊/.test(value)) return "AA";
+  if (/\d+\s*[-~至到]\s*\d+/.test(value)) return "RANGE";
+  return "FIXED";
+}
+
+function cleanPromoText(value: string) {
+  return value
+    .replace(/微信|wechat|playinparis1|交流群/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function parseSortirAParisArticleHtml(
+  html: string,
+  sourceUrl: string,
+): ScrapedActivity | null {
+  const jsonLdBlocks = parseJsonLdBlocks(html);
+  let articleData: Record<string, unknown> | null = null;
+  for (const block of jsonLdBlocks) {
+    if (block && typeof block === "object" && !Array.isArray(block)) {
+      const value = block as Record<string, unknown>;
+      if (value["@type"] === "NewsArticle") {
+        articleData = value;
+        break;
+      }
+    }
+  }
+
+  const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  const bodyText = bodyMatch ? stripHtml(bodyMatch[1]) : stripHtml(html);
+  const pageTitle = (() => {
+    const match = html.match(/<title>([\s\S]*?)<\/title>/i)?.[1];
+    if (!match) return "未命名活动";
+    return stripHtml(match.replace(/\s*-\s*Sortiraparis\.com.*/i, ""));
+  })();
+  const title =
+    articleData && typeof articleData.headline === "string"
+      ? stripHtml(articleData.headline)
+      : pageTitle;
+  const descriptionRaw =
+    articleData && typeof articleData.description === "string"
+      ? articleData.description
+      : (extractMetaContent(html, ["description", "og:description"]) ?? "");
+  const description = stripHtml(descriptionRaw) || title;
+  const microdata = extractSortirMicrodata(html);
+  const explicitDateHint = parseChineseDate(
+    `${title} ${description}`,
+    new Date().getUTCFullYear(),
+  );
+  const fallbackDateHint = parseChineseDate(
+    `${title} ${description} ${bodyText}`,
+    new Date().getUTCFullYear(),
+  );
+  const datePublished =
+    articleData && typeof articleData.datePublished === "string"
+      ? parseDateTimeString(articleData.datePublished)
+      : null;
+  const dateHint = explicitDateHint ?? fallbackDateHint;
+  const startAt =
+    microdata.startAt ?? dateHint?.start ?? datePublished ?? new Date();
+  const endAt = microdata.endAt ?? dateHint?.end ?? null;
+  const coverImageUrl = extractSortirArticleImage(html, articleData?.image);
+  const priceText = /免费|gratuit|free/i.test(
+    `${title} ${description} ${bodyText}`,
+  )
+    ? "免费"
+    : "查看原文";
+  const address = microdata.address ?? "Paris, France";
+
+  return {
+    id: makeStableId("sortiraparis", sourceUrl),
+    source: "sortiraparis",
+    sourceUrl,
+    title,
+    description,
+    itinerary: null,
+    type: "PUBLIC_EVENT",
+    category: guessCategory(`${title} ${description}`),
+    city: "Paris",
+    destination: null,
+    address,
+    startAt: startAt.toISOString(),
+    endAt: endAt?.toISOString() ?? null,
+    capacity: 100,
+    minParticipants: null,
+    requiresApproval: false,
+    priceType: guessPriceType(priceText),
+    priceText,
+    coverImageUrl,
+    status: "RECRUITING",
+    visibility: "PUBLIC",
+  };
+}
+
+export function parsePlayInParisEventHtml(
+  html: string,
+  sourceUrl: string,
+): ScrapedActivity | null {
+  const nodes = flattenJsonLd(html);
+  const event = nodes.find((node) => hasJsonLdType(node, "event"));
+  if (!event) return null;
+
+  const title =
+    typeof event.name === "string" ? stripHtml(event.name) : "未命名活动";
+  const description = cleanPromoText(
+    typeof event.description === "string" ? stripHtml(event.description) : "",
+  );
+  const startAt =
+    typeof event.startDate === "string"
+      ? parseDateTimeString(event.startDate)
+      : null;
+  const endAt =
+    typeof event.endDate === "string"
+      ? parseDateTimeString(event.endDate)
+      : null;
+  if (!startAt) return null;
+
+  const location = event.location as Record<string, unknown> | undefined;
+  const locationName =
+    location && typeof location.name === "string"
+      ? stripHtml(location.name)
+      : "";
+  const address =
+    location?.address && typeof location.address === "object"
+      ? [
+          locationName,
+          (location.address as Record<string, unknown>).streetAddress,
+          (location.address as Record<string, unknown>).postalCode,
+          (location.address as Record<string, unknown>).addressLocality,
+          (location.address as Record<string, unknown>).addressCountry,
+        ]
+          .filter(Boolean)
+          .map((part) => stripHtml(String(part)))
+          .join(" · ")
+      : locationName || "Paris";
+  const offer = Array.isArray(event.offers) ? event.offers[0] : event.offers;
+  const price =
+    offer && typeof offer === "object"
+      ? (offer as Record<string, unknown>).price
+      : undefined;
+  const currency =
+    offer && typeof offer === "object"
+      ? (offer as Record<string, unknown>).priceCurrency
+      : undefined;
+  const priceText =
+    price === undefined || price === null || price === ""
+      ? "查看原文"
+      : String(price) === "0"
+        ? "免费"
+        : currency
+          ? `${price} ${currency}`
+          : String(price);
+
+  return {
+    id: makeStableId("playinparis", sourceUrl),
+    source: "playinparis",
+    sourceUrl,
+    title,
+    description: description || title,
+    itinerary: null,
+    type: "PUBLIC_EVENT",
+    category: guessCategory(`${title} ${description}`),
+    city: "Paris",
+    destination: null,
+    address,
+    startAt: startAt.toISOString(),
+    endAt: endAt?.toISOString() ?? null,
+    capacity: 100,
+    minParticipants: null,
+    requiresApproval: false,
+    priceType: guessPriceType(priceText),
+    priceText,
+    coverImageUrl:
+      resolveJsonLdImage(nodes, event.image) ?? extractPageImageUrl(html),
+    status: "RECRUITING",
+    visibility: "PUBLIC",
+  };
+}
+
+export const activityLinkImportUserAgent =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36 NextFunClub/1.0 activity-link-import";
