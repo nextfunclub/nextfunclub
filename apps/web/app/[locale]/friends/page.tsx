@@ -40,6 +40,7 @@ export default async function FriendsPage({ params }: FriendsPageProps) {
         />
       ) : (
         <FriendsDashboard
+          currentUserFriendCode={profile.friendCode}
           dashboard={dashboardResult.dashboard}
           locale={locale}
         />

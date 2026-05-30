@@ -11,6 +11,9 @@ export function getFriendsCopy(locale: string) {
       addDescription:
         "Saisissez son code ami, son e-mail ou son pseudo.",
       close: "Fermer",
+      ownFriendCode: "Votre code ami",
+      copyOwnFriendCode: "Copier mon code ami",
+      ownFriendCodeCopied: "Copié",
       searchLabel: "Code ami, e-mail ou pseudo",
       searchPlaceholder: "ex. 123456",
       searchHint:
@@ -69,6 +72,9 @@ export function getFriendsCopy(locale: string) {
       addDescription:
         "Enter a friend code, email, or nickname.",
       close: "Close",
+      ownFriendCode: "Your friend code",
+      copyOwnFriendCode: "Copy my friend code",
+      ownFriendCodeCopied: "Copied",
       searchLabel: "Friend code, email, or nickname",
       searchPlaceholder: "e.g. 123456",
       searchHint: "Friend code is the most accurate. Email also works.",
@@ -124,6 +130,9 @@ export function getFriendsCopy(locale: string) {
     addTitle: "添加好友",
     addDescription: "输入好友号、邮箱或昵称，发送好友申请。",
     close: "关闭",
+    ownFriendCode: "我的好友号",
+    copyOwnFriendCode: "复制我的好友号",
+    ownFriendCodeCopied: "已复制",
     searchLabel: "好友号、邮箱或昵称",
     searchPlaceholder: "例如：123456",
     searchHint: "好友号最准确，也可以使用邮箱添加。",

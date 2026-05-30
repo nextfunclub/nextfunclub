@@ -10,12 +10,14 @@ type UserMenuProps = {
   locale: string;
   showAdminLink?: boolean;
   unreadNotificationCount?: number;
+  viewerFriendCode?: string | null;
 };
 
 export function UserMenu({
   locale,
   showAdminLink = false,
   unreadNotificationCount = 0,
+  viewerFriendCode = null,
 }: UserMenuProps) {
   const t = getCopy(locale);
 
@@ -33,6 +35,7 @@ export function UserMenu({
         <AccountMenu
           locale={locale}
           showAdminLink={showAdminLink}
+          viewerFriendCode={viewerFriendCode}
           unreadNotificationCount={unreadNotificationCount}
         />
       </SignedIn>

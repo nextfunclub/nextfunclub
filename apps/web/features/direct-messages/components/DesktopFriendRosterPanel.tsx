@@ -25,6 +25,7 @@ import { MessageAvatar } from "./MessageAvatar";
 
 type DesktopFriendRosterPanelProps = {
   currentUserProfileId: string;
+  currentUserFriendCode?: string | null;
   friends: DirectMessageFriendRosterItemViewModel[];
   locale: string;
   selectedConversationId?: string;
@@ -32,6 +33,7 @@ type DesktopFriendRosterPanelProps = {
 
 export function DesktopFriendRosterPanel({
   currentUserProfileId,
+  currentUserFriendCode = null,
   friends,
   locale,
   selectedConversationId,
@@ -89,6 +91,7 @@ export function DesktopFriendRosterPanel({
 
       {addFriendOpen ? (
         <AddFriendDialog
+          currentUserFriendCode={currentUserFriendCode}
           locale={locale}
           onClose={() => setAddFriendOpen(false)}
           returnTo="messages"

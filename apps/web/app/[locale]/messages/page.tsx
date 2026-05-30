@@ -38,6 +38,7 @@ export default async function MessagesPage({ params }: MessagesPageProps) {
       ) : (
         <MobileFriendChatRoster
           currentUserProfileId={profile.id}
+          currentUserFriendCode={profile.friendCode}
           friends={friendRosterResult.friends}
           locale={locale}
         />
@@ -56,6 +57,7 @@ export default async function MessagesPage({ params }: MessagesPageProps) {
             <NoConversationSelected locale={locale} />
             <DesktopFriendRosterPanel
               currentUserProfileId={profile.id}
+              currentUserFriendCode={profile.friendCode}
               friends={friendRosterResult.friends}
               locale={locale}
             />
