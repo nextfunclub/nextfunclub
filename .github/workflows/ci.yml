@@ -24,7 +24,9 @@ jobs:
 
       - name: Generate Prisma client
         run: npm run db:generate
-
+        env:
+          DATABASE_URL: postgresql://prisma:prisma@localhost:5432/prisma?schema=public
+          DIRECT_URL: postgresql://prisma:prisma@localhost:5432/prisma?schema=public
       - name: Lint
         run: npm run lint
 
