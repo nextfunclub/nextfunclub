@@ -4,9 +4,10 @@ import { ArrowLeft, CalendarDays, CheckCircle2, ListChecks } from "lucide-react"
 import { PageContainer } from "@/components/layout/PageContainer";
 import {
   getVersionUpdateBySlug,
-  versionUpdates,
 } from "@/features/updates/versionUpdates";
 import { withLocale } from "@/lib/routes";
+
+export const dynamic = "force-dynamic";
 
 type VersionUpdateDetailPageProps = {
   params: Promise<{
@@ -17,12 +18,6 @@ type VersionUpdateDetailPageProps = {
 
 function formatDate(value: string) {
   return value.replaceAll("-", ".");
-}
-
-export function generateStaticParams() {
-  return versionUpdates.map((update) => ({
-    versionSlug: update.slug,
-  }));
 }
 
 export default async function VersionUpdateDetailPage({
