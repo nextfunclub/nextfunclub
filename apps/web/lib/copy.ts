@@ -142,10 +142,10 @@ const copy = {
     activityLobby: {
       eyebrow: "你的局，你的搭子，你的下一场",
       title: "组队大厅",
-      description: "今天想去哪儿玩？先来看看最近有什么局。",
+      description: "在这里发现活动，和朋友、新搭子一起组队出发",
       emptyTitle: "你的组队大厅还空着",
       emptyDescription:
-        "公园？逛展？还是看电影？先组一个局，去逛逛活动，再加几个好友吧。",
+        "公园？逛展？还是看电影？先组个局，去逛逛活动，再加几个好友吧。",
       emptySectionTitle: "从这里开始吧",
       createdTitle: "我发起的",
       createdDescription: "公园？逛展？还是看电影？先来组个局，带上搭子一起出发吧！",

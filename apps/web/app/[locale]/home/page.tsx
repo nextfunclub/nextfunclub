@@ -21,21 +21,6 @@ export const dynamic = "force-dynamic";
 export default async function HomePage({ params }: HomePageProps) {
   const { locale } = await params;
   const t = getCopy(locale);
-  const heroCopy = {
-    eyebrow:
-      locale === "fr"
-        ? "Activites reelles 路 liens reels"
-        : locale === "en"
-          ? "Real-world activities 路 real connection"
-          : "真实活动 路 真实连接",
-    title: "Next Fun",
-    description:
-      locale === "fr"
-        ? "Decouvrez des activites ici et partez en equipe avec vos amis et de nouveaux compagnons."
-        : locale === "en"
-          ? "Discover activities here and head out with your friends and new buddies as a team!"
-          : "在这里发现活动，和朋友、新搭子一起组队出发",
-  };
   const viewerProfile = await getOptionalCurrentUserProfile();
   const activitiesResult = await getActivities({
     limit: 4,
@@ -54,17 +39,17 @@ export default async function HomePage({ params }: HomePageProps) {
           <div className="space-y-5">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/78 px-3 py-1 text-xs text-zinc-600 ring-1 ring-black/10 sm:text-sm">
               <Sparkles className="h-4 w-4 text-[#b98355]" />
-              {heroCopy.eyebrow}
+              {t.home.eyebrow}
             </div>
             <div className="space-y-3 sm:space-y-4">
               <h1 className="max-w-2xl text-4xl font-semibold leading-tight tracking-normal text-ink sm:text-5xl lg:text-6xl">
-                {heroCopy.title}
+                {t.home.title}
               </h1>
               <p className="text-xl font-medium leading-snug text-moss sm:text-2xl">
                 {t.home.tagline}
               </p>
               <p className="max-w-xl text-base leading-7 text-zinc-700 sm:text-lg">
-                {heroCopy.description}
+                {t.home.description}
               </p>
             </div>
             <div className="max-w-md pt-2">

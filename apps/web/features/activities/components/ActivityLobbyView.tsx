@@ -239,7 +239,7 @@ function getEmptyCategoryCopy(locale: string) {
 
   return {
     title: "这里暂时还没有内容。",
-    description: "可以切换看看其他分类，先组一个局，或者去发现新的活动。",
+    description: "可以切换看看其他分类，先组个局，或者去发现新的活动。",
   };
 }
 
@@ -308,7 +308,7 @@ function getEmptyLobbyActions(locale: string): EmptyLobbyAction[] {
       href: "/activities/new",
       label: "我来组局",
       description:
-        "公园、逛展、看电影，想到什么就先发个局，看看谁会跟上你一起出发。",
+        "公园、逛展、看电影，想到什么就先组个局，看看谁会跟上你一起出发。",
       tone: "secondary",
     },
     {
@@ -391,6 +391,18 @@ export function ActivityLobbyView({
   );
   const emptyCategoryCopy = getEmptyCategoryCopy(locale);
   const emptyLobbyActions = getEmptyLobbyActions(locale);
+  const normalizedEmptyLobbyActions =
+    locale === "zh-CN"
+      ? emptyLobbyActions.map((action, index) =>
+          index === 0
+            ? {
+                ...action,
+                description:
+                  "把常一起玩的人先加进来，有新局、新活动时，你马上就能在这里看到。",
+              }
+            : action,
+        )
+      : emptyLobbyActions;
 
   return (
     <div className="space-y-8">
@@ -452,7 +464,7 @@ export function ActivityLobbyView({
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-3">
-            {emptyLobbyActions.map((action) => (
+            {normalizedEmptyLobbyActions.map((action) => (
               <div
                 key={action.href}
                 className={cn(
