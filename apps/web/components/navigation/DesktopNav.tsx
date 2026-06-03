@@ -51,7 +51,6 @@ export function DesktopNav({ locale }: DesktopNavProps) {
               active
                 ? "bg-white/80 text-ink shadow-sm"
                 : "text-zinc-700 hover:bg-white/70",
-              item.className,
             )}
             href={withLocale(currentLocale, item.href)}
           >
