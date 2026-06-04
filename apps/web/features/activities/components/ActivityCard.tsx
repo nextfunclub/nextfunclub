@@ -7,8 +7,13 @@ import {
   CardTitle,
 } from "@chill-club/ui";
 import { AnalyticsLink } from "@/features/analytics/components/AnalyticsLink";
-import type { AnalyticsEventName, AnalyticsSourceSurface } from "@/features/analytics/events";
+import type {
+  AnalyticsEventName,
+  AnalyticsSourceSurface,
+} from "@/features/analytics/events";
 import { getAnalyticsEntityForActivity } from "@/features/analytics/utils";
+import { PublicEventFavoriteButton } from "@/features/favorites/components/PublicEventFavoriteButton";
+import { ActivityFavoriteButton } from "@/features/favorites/components/ActivityFavoriteButton";
 import { getCategoryLabel, getCopy } from "@/lib/copy";
 import { withLocale } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -20,8 +25,6 @@ import {
 } from "../utils/activityDisplay";
 import { ActivityCoverImage } from "./ActivityCoverImage";
 import { ActivityStatusBadge } from "./ActivityStatusBadge";
-import { ActivityFavoriteButton } from "@/features/favorites/components/ActivityFavoriteButton";
-import { PublicEventFavoriteButton } from "@/features/favorites/components/PublicEventFavoriteButton";
 
 type ActivityCardProps = {
   activity: ActivityCardViewModel;
@@ -39,14 +42,14 @@ const coverTones: Record<ActivityCardViewModel["coverTone"], string> = {
 
 function getCardKindLabel(isActivityInfo: boolean, locale: string) {
   if (locale === "fr") {
-    return isActivityInfo ? "Événement" : "Équipe";
+    return isActivityInfo ? "Evenement" : "Equipe";
   }
 
   if (locale === "en") {
     return isActivityInfo ? "Event" : "Team";
   }
 
-  return isActivityInfo ? "活动" : "车队";
+  return isActivityInfo ? "活动" : "组局";
 }
 
 function getCardFavoriteLabels(locale: string) {
@@ -79,6 +82,21 @@ function getCardFavoriteLabels(locale: string) {
   };
 }
 
+function getParticipationActionLabel(
+  activityCopy: ReturnType<typeof getCopy>,
+  status: ActivityCardViewModel["viewerParticipationStatus"],
+) {
+  if (status === "PENDING") {
+    return activityCopy.join.pendingAction;
+  }
+
+  if (status === "JOINED" || status === "APPROVED") {
+    return activityCopy.join.joinedAction;
+  }
+
+  return null;
+}
+
 export function ActivityCard({
   activity,
   isAuthenticated = false,
@@ -105,11 +123,15 @@ export function ActivityCard({
     isActivityInfo && displayStatus !== "ENDED" && displayStatus !== "CANCELLED"
       ? withLocale(locale, activityInfoTeamHref)
       : cardHref;
+  const participationActionLabel = getParticipationActionLabel(
+    t,
+    activity.viewerParticipationStatus ?? null,
+  );
   const primaryActionLabel = isActivityInfo
     ? locale === "fr"
       ? displayStatus === "ENDED" || displayStatus === "CANCELLED"
-        ? "Voir l'événement"
-        : "Former une équipe"
+        ? "Voir l'evenement"
+        : "Former une equipe"
       : locale === "en"
         ? displayStatus === "ENDED" || displayStatus === "CANCELLED"
           ? "View event"
@@ -122,6 +144,11 @@ export function ActivityCard({
       : locale === "en"
         ? "Join now"
         : "立刻报名";
+  const actionLabel =
+    participationActionLabel ??
+    (!isActivityInfo && displayStatus === "FULL"
+      ? t.join.fullAction
+      : primaryActionLabel);
   const activityLabel = t.activityLabels.activityAria(
     activity.title,
     getActivityDateLabel(activity, locale),
@@ -173,6 +200,7 @@ export function ActivityCard({
           />
         </div>
       ) : null}
+
       <AnalyticsLink
         className="flex flex-1 flex-col"
         href={cardHref}
@@ -209,11 +237,13 @@ export function ActivityCard({
             </span>
           </div>
         </div>
+
         <CardHeader className="p-4 pb-2 sm:p-5 sm:pb-2">
           <CardTitle className="line-clamp-2 text-base leading-snug sm:text-lg">
             {activity.title}
           </CardTitle>
         </CardHeader>
+
         <CardContent className="flex flex-1 flex-col space-y-3 p-4 pt-0 sm:p-5 sm:pt-0">
           <div className="grid gap-2 text-sm text-zinc-600">
             <span className="flex items-start gap-2">
@@ -235,6 +265,7 @@ export function ActivityCard({
           </div>
         </CardContent>
       </AnalyticsLink>
+
       <div className="px-4 pb-4 pt-0 sm:px-5 sm:pb-5">
         <AnalyticsLink
           href={actionHref}
@@ -247,7 +278,7 @@ export function ActivityCard({
           }}
         >
           <Button className="h-10 w-full rounded-full border-0 bg-[#d88d72] text-white hover:bg-[#c87b61]">
-            {primaryActionLabel}
+            {actionLabel}
           </Button>
         </AnalyticsLink>
       </div>

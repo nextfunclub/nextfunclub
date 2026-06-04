@@ -16,6 +16,7 @@ import {
 } from "./getActivities";
 
 const activityLobbySectionLimit = 6;
+const visibleLobbyParticipationStatuses = ["JOINED", "APPROVED", "PENDING"] as const;
 
 const lobbyParticipationSelect = {
   activity: {
@@ -84,11 +85,35 @@ async function decorateLobbyActivities(
         viewerProfileId,
       ),
     ]);
+  const viewerParticipationByActivityId = new Map(
+    (
+      await prisma.activityParticipant.findMany({
+        where: {
+          userProfileId: viewerProfileId,
+          activityId: {
+            in: teamActivitiesWithState.map((activity) => activity.id),
+          },
+        },
+        select: {
+          activityId: true,
+          status: true,
+        },
+        orderBy: [{ joinedAt: "desc" }, { id: "desc" }],
+      })
+    ).map((participation) => [participation.activityId, participation.status]),
+  );
   const publicEventFavoriteById = new Map(
     publicEventActivitiesWithState.map((activity) => [activity.id, activity]),
   );
   const teamActivityById = new Map(
-    teamActivitiesWithState.map((activity) => [activity.id, activity]),
+    teamActivitiesWithState.map((activity) => [
+      activity.id,
+      {
+        ...activity,
+        viewerParticipationStatus:
+          viewerParticipationByActivityId.get(activity.id) ?? null,
+      },
+    ]),
   );
 
   return activities.map((activity) => {
@@ -167,6 +192,9 @@ export async function getActivityLobby(
     prisma.activityParticipant.findMany({
       where: {
         userProfileId: viewerProfileId,
+        status: {
+          in: [...visibleLobbyParticipationStatuses],
+        },
         activity: visibleWhere,
       },
       orderBy: [{ joinedAt: "desc" }, { id: "asc" }],
@@ -210,6 +238,9 @@ export async function getActivityLobby(
           where: {
             userProfileId: {
               in: friendIds,
+            },
+            status: {
+              in: [...visibleLobbyParticipationStatuses],
             },
             activity: visibleWhere,
           },
