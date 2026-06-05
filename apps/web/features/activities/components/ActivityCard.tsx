@@ -28,6 +28,7 @@ import { ActivityStatusBadge } from "./ActivityStatusBadge";
 
 type ActivityCardProps = {
   activity: ActivityCardViewModel;
+  favoriteRedirectPath?: string;
   isAuthenticated?: boolean;
   locale: string;
   showFavoriteButton?: boolean;
@@ -99,6 +100,7 @@ function getParticipationActionLabel(
 
 export function ActivityCard({
   activity,
+  favoriteRedirectPath = "/activities",
   isAuthenticated = false,
   locale,
   showFavoriteButton = false,
@@ -182,7 +184,7 @@ export function ActivityCard({
             isAuthenticated={isAuthenticated}
             isFavorited={Boolean(activity.isFavorited)}
             locale={locale}
-            redirectPath="/activities"
+            redirectPath={favoriteRedirectPath}
             labelOverrides={getCardFavoriteLabels(locale)}
           />
         </div>
@@ -195,7 +197,7 @@ export function ActivityCard({
             isAuthenticated={isAuthenticated}
             isFavorited={Boolean(activity.isFavorited)}
             locale={locale}
-            redirectPath="/activities"
+            redirectPath={favoriteRedirectPath}
             labelOverrides={getCardFavoriteLabels(locale)}
           />
         </div>
