@@ -239,6 +239,9 @@ export function NewActivityForm({
     ? getPublicEventTeamFormCopy(locale)
     : null;
   const isPublicEventTeam = Boolean(publicEventTeamFormCopy);
+  const [isCapacityLimited, setIsCapacityLimited] = useState(
+    values?.capacityLimitEnabled ?? Number(values?.capacity ?? 0) > 0,
+  );
 
   function applyImportedValues(nextValues: Partial<ActivityFormValues>) {
     setImportedValues((currentValues) => ({
@@ -532,36 +535,66 @@ export function NewActivityForm({
           <FormSection
             title={publicEventTeamFormCopy?.peoplePrice ?? t.form.peoplePrice}
           >
-            <div className="grid gap-5 sm:grid-cols-2">
-              <label className="grid gap-2 text-sm font-medium text-zinc-700">
-                {publicEventTeamFormCopy?.capacity ?? t.form.capacity}
-                <Input
-                  name="capacity"
-                  aria-invalid={Boolean(state.fieldErrors?.capacity)}
-                  type="number"
-                  min={2}
-                  max={100}
-                  defaultValue={values?.capacity ?? "99"}
-                  required
-                />
-                <FieldError errors={state.fieldErrors?.capacity} />
-              </label>
+            <label className="flex items-start gap-3 rounded-md border border-zinc-200 bg-white p-3 text-sm text-zinc-700">
+              <input
+                checked={isCapacityLimited}
+                className="mt-1"
+                name="capacityLimitEnabled"
+                onChange={(event) =>
+                  setIsCapacityLimited(event.target.checked)
+                }
+                type="checkbox"
+              />
+              <span>
+                <span className="font-medium text-ink">
+                  {t.form.capacityLimitToggle}
+                </span>
+                <span className="mt-1 block text-zinc-500">
+                  {t.form.capacityLimitHint}
+                </span>
+              </span>
+            </label>
 
-              <label className="grid gap-2 text-sm font-medium text-zinc-700">
-                {publicEventTeamFormCopy?.minParticipants ??
-                  t.form.minParticipants}
-                <Input
-                  name="minParticipants"
-                  aria-invalid={Boolean(state.fieldErrors?.minParticipants)}
-                  type="number"
-                  min={1}
-                  max={100}
-                  defaultValue={values?.minParticipants}
-                  placeholder={t.form.minParticipantsPlaceholder}
-                />
-                <FieldError errors={state.fieldErrors?.minParticipants} />
-              </label>
-            </div>
+            {isCapacityLimited ? (
+              <div className="grid gap-5 sm:grid-cols-2">
+                <label className="grid gap-2 text-sm font-medium text-zinc-700">
+                  {publicEventTeamFormCopy?.capacity ?? t.form.capacity}
+                  <Input
+                    name="capacity"
+                    aria-invalid={Boolean(state.fieldErrors?.capacity)}
+                    type="number"
+                    min={2}
+                    max={100}
+                    defaultValue={
+                      Number(values?.capacity ?? 0) > 0 ? values?.capacity : ""
+                    }
+                    placeholder={t.form.capacityPlaceholder}
+                    required
+                  />
+                  <FieldError errors={state.fieldErrors?.capacity} />
+                </label>
+
+                <label className="grid gap-2 text-sm font-medium text-zinc-700">
+                  {publicEventTeamFormCopy?.minParticipants ??
+                    t.form.minParticipants}
+                  <Input
+                    name="minParticipants"
+                    aria-invalid={Boolean(state.fieldErrors?.minParticipants)}
+                    type="number"
+                    min={1}
+                    max={100}
+                    defaultValue={values?.minParticipants}
+                    placeholder={t.form.minParticipantsPlaceholder}
+                  />
+                  <FieldError errors={state.fieldErrors?.minParticipants} />
+                </label>
+              </div>
+            ) : (
+              <>
+                <input name="capacity" type="hidden" value="0" />
+                <input name="minParticipants" type="hidden" value="" />
+              </>
+            )}
 
             <div className="grid gap-5 sm:grid-cols-2">
               <label className="grid gap-2 text-sm font-medium text-zinc-700">

@@ -244,7 +244,10 @@ export async function joinActivityAction(
           return getJoinFailure("你已经报名过这个活动。", "already_joined");
         }
 
-        if (activity._count.participants >= activity.capacity) {
+        if (
+          activity.capacity > 0 &&
+          activity._count.participants >= activity.capacity
+        ) {
           return getJoinFailure("活动名额已满，不能继续报名。", "activity_full");
         }
 

@@ -17,6 +17,7 @@ export type ActivityFormValues = {
   startAt: string;
   endAt: string;
   capacity: string;
+  capacityLimitEnabled: boolean;
   minParticipants: string;
   requiresApproval: boolean;
   priceType: string;
@@ -134,6 +135,7 @@ export function getActivityFormValues(formData: FormData): ActivityFormValues {
     startAt: getString(formData, "startAt"),
     endAt: getString(formData, "endAt"),
     capacity: getString(formData, "capacity"),
+    capacityLimitEnabled: formData.get("capacityLimitEnabled") === "on",
     minParticipants: getString(formData, "minParticipants"),
     requiresApproval: formData.get("requiresApproval") === "on",
     priceType: getString(formData, "priceType"),
