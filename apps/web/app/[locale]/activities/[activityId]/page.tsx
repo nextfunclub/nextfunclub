@@ -144,10 +144,10 @@ export default async function ActivityDetailPage({
 
     return (
       <PageContainer className="space-y-6">
-        <div className="relative flex min-h-52 items-end overflow-hidden rounded-lg bg-moss p-4 sm:p-5 md:min-h-72">
+        <div className="relative flex min-h-52 items-end overflow-hidden rounded-[1.25rem] bg-moss p-4 shadow-[0_16px_36px_rgba(58,49,34,0.12)] sm:p-5 md:min-h-72">
           <ActivityCoverImage
             src={activity.coverImageUrl}
-            overlayClassName="bg-black/35"
+            overlayClassName="bg-gradient-to-t from-black/76 via-black/34 to-black/12"
           />
           <div className="absolute right-4 top-4 z-30 sm:right-5 sm:top-5">
             <ReportDialog
@@ -159,16 +159,17 @@ export default async function ActivityDetailPage({
               variant="icon"
             />
           </div>
-          <div className="relative max-w-3xl space-y-3">
+          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/62 to-transparent" />
+          <div className="relative max-w-3xl space-y-3 rounded-[1.15rem] bg-black/26 p-3 ring-1 ring-white/10 backdrop-blur-sm sm:p-4">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-md bg-white/90 px-2.5 py-1 text-xs font-semibold text-ink">
+              <span className="rounded-md bg-white/95 px-2.5 py-1 text-xs font-semibold text-ink shadow-sm">
                 {activityCategoryLabel}
               </span>
-              <span className="rounded-md bg-white/80 px-2.5 py-1 text-xs font-medium text-zinc-700">
+              <span className="rounded-md bg-white/85 px-2.5 py-1 text-xs font-medium text-zinc-700 shadow-sm">
                 {publicEventCopy.detailSource}
               </span>
             </div>
-            <h1 className="text-3xl font-semibold tracking-normal text-white sm:text-4xl md:text-5xl">
+            <h1 className="text-3xl font-semibold leading-tight tracking-normal text-white [text-shadow:0_2px_18px_rgba(0,0,0,0.45)] sm:text-4xl md:text-5xl">
               {activity.title}
             </h1>
           </div>
@@ -436,10 +437,10 @@ export default async function ActivityDetailPage({
 
   return (
     <PageContainer className="space-y-6">
-      <div className="relative flex min-h-52 items-end overflow-hidden rounded-lg bg-moss p-4 sm:p-5 md:min-h-72">
+      <div className="relative flex min-h-52 items-end overflow-hidden rounded-[1.25rem] bg-moss p-4 shadow-[0_16px_36px_rgba(58,49,34,0.12)] sm:p-5 md:min-h-72">
         <ActivityCoverImage
           src={activity.coverImageUrl}
-          overlayClassName="bg-black/35"
+          overlayClassName="bg-gradient-to-t from-black/76 via-black/34 to-black/12"
         />
         <div className="absolute right-4 top-4 z-30 flex items-center gap-2 sm:right-5 sm:top-5">
           <ActivityFavoriteButton
@@ -458,14 +459,15 @@ export default async function ActivityDetailPage({
             variant="icon"
           />
         </div>
-        <div className="relative max-w-3xl space-y-3">
+        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/62 to-transparent" />
+        <div className="relative max-w-3xl space-y-3 rounded-[1.15rem] bg-black/26 p-3 ring-1 ring-white/10 backdrop-blur-sm sm:p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-md bg-white/90 px-2.5 py-1 text-xs font-semibold text-ink">
+            <span className="rounded-md bg-white/95 px-2.5 py-1 text-xs font-semibold text-ink shadow-sm">
               {activityCategoryLabel}
             </span>
             <ActivityStatusBadge status={displayStatus} locale={locale} />
           </div>
-          <h1 className="text-3xl font-semibold tracking-normal text-white sm:text-4xl md:text-5xl">
+          <h1 className="text-3xl font-semibold leading-tight tracking-normal text-white [text-shadow:0_2px_18px_rgba(0,0,0,0.45)] sm:text-4xl md:text-5xl">
             {activity.title}
           </h1>
         </div>

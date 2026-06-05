@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@chill-club/ui";
 import { getCopy } from "@/lib/copy";
@@ -20,27 +20,85 @@ const initialState: CancelActivityState = {};
 function CancelActivityButton({
   disabled,
   locale,
+  onOpen,
 }: {
   disabled?: boolean;
   locale: string;
+  onOpen: () => void;
 }) {
   const { pending } = useFormStatus();
   const t = getCopy(locale).activityOwner;
 
   return (
     <Button
-      type="submit"
+      type="button"
       variant="secondary"
       className="w-full text-red-700 hover:bg-red-50"
       disabled={disabled || pending}
-      onClick={(event) => {
-        if (!window.confirm(t.cancelConfirm)) {
-          event.preventDefault();
-        }
-      }}
+      onClick={onOpen}
     >
       {pending ? t.cancelling : t.cancel}
     </Button>
+  );
+}
+
+function CancelActivityConfirmDialog({
+  locale,
+  onClose,
+}: {
+  locale: string;
+  onClose: () => void;
+}) {
+  const { pending } = useFormStatus();
+  const t = getCopy(locale).activityOwner;
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] grid place-items-center bg-black/45 px-4 py-6 backdrop-blur-sm"
+      role="presentation"
+    >
+      <div
+        aria-describedby="cancel-activity-confirm-description"
+        aria-modal="true"
+        className="w-full max-w-md overflow-hidden rounded-[1.25rem] border border-[#e2d7c2] bg-[#fffaf1] shadow-[0_22px_70px_rgba(36,28,14,0.22)]"
+        role="alertdialog"
+      >
+        <div className="border-b border-[#eadfcd] px-5 py-4 sm:px-6">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#8a6a40]">
+            {t.title}
+          </p>
+          <h2 className="mt-1 text-xl font-semibold text-ink">
+            {t.cancelConfirmTitle}
+          </h2>
+        </div>
+        <div className="px-5 py-5 sm:px-6">
+          <p
+            className="text-sm leading-6 text-zinc-600"
+            id="cancel-activity-confirm-description"
+          >
+            {t.cancelConfirmDescription}
+          </p>
+          <div className="mt-5 grid gap-2 sm:grid-cols-2">
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-11 rounded-full bg-white"
+              disabled={pending}
+              onClick={onClose}
+            >
+              {t.cancelConfirmBack}
+            </Button>
+            <Button
+              type="submit"
+              className="h-11 rounded-full bg-[#9f4a3e] text-white hover:bg-[#8b3f35]"
+              disabled={pending}
+            >
+              {pending ? t.cancelling : t.cancelConfirmSubmit}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -53,6 +111,13 @@ export function CancelActivityForm({
     cancelActivityAction,
     initialState,
   );
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+
+  useEffect(() => {
+    if (state.formError) {
+      setIsConfirmOpen(false);
+    }
+  }, [state.formError]);
 
   return (
     <form action={formAction} className="grid gap-2" noValidate>
@@ -68,7 +133,17 @@ export function CancelActivityForm({
         </div>
       ) : null}
 
-      <CancelActivityButton disabled={disabled} locale={locale} />
+      <CancelActivityButton
+        disabled={disabled}
+        locale={locale}
+        onOpen={() => setIsConfirmOpen(true)}
+      />
+      {isConfirmOpen ? (
+        <CancelActivityConfirmDialog
+          locale={locale}
+          onClose={() => setIsConfirmOpen(false)}
+        />
+      ) : null}
     </form>
   );
 }

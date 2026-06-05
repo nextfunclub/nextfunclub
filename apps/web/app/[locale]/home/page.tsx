@@ -35,8 +35,8 @@ export default async function HomePage({ params }: HomePageProps) {
   return (
     <>
       <PageContainer className="space-y-9 pb-6 md:space-y-12">
-        <section className="grid gap-6 py-3 md:grid-cols-[1.05fr_0.95fr] md:items-center md:py-10 lg:gap-12">
-          <div className="space-y-5">
+        <section className="py-3 md:py-10">
+          <div className="max-w-3xl space-y-5">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/78 px-3 py-1 text-xs text-zinc-600 ring-1 ring-black/10 sm:text-sm">
               <Sparkles className="h-4 w-4 text-[#b98355]" />
               {t.home.eyebrow}
@@ -54,44 +54,6 @@ export default async function HomePage({ params }: HomePageProps) {
             </div>
             <div className="max-w-md pt-2">
               <ActivityModeTabs current="activities" locale={locale} />
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-black/10 bg-white/70 p-3 shadow-sm sm:p-4">
-            <div className="grid gap-2.5 sm:gap-3">
-              {activitiesResult.error ? (
-                <div className="rounded-md bg-paper px-3 py-3 sm:px-4">
-                  <p className="font-semibold text-ink">
-                    {t.home.homeActivityFailedTitle}
-                  </p>
-                  <p className="mt-1 text-sm text-zinc-600">
-                    {t.home.homeActivityFailedDescription}
-                  </p>
-                </div>
-              ) : activitiesResult.activities.length === 0 ? (
-                <div className="rounded-md bg-paper px-3 py-3 sm:px-4">
-                  <p className="font-semibold text-ink">
-                    {t.home.emptyPreviewTitle}
-                  </p>
-                  <p className="mt-1 text-sm text-zinc-600">
-                    {t.home.emptyPreviewDescription}
-                  </p>
-                </div>
-              ) : (
-                activitiesResult.activities.slice(0, 2).map((activity) => (
-                  <div
-                    key={activity.id}
-                    className="rounded-md bg-paper px-3 py-3 sm:px-4"
-                  >
-                    <p className="line-clamp-2 text-sm font-semibold leading-snug text-ink sm:text-base">
-                      {activity.title}
-                    </p>
-                    <p className="mt-1 line-clamp-1 text-xs text-zinc-600 sm:text-sm">
-                      {activity.address}
-                    </p>
-                  </div>
-                ))
-              )}
             </div>
           </div>
         </section>

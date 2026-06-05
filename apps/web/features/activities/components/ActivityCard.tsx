@@ -221,20 +221,24 @@ export function ActivityCard({
             coverTones[activity.coverTone],
           )}
         >
-          <ActivityCoverImage src={activity.coverImageUrl} />
-          <div className="relative flex min-w-0 flex-wrap gap-2">
-            <span className="rounded-md bg-white/90 px-2.5 py-1 text-xs font-semibold leading-none text-ink">
+          <ActivityCoverImage
+            src={activity.coverImageUrl}
+            overlayClassName="bg-gradient-to-t from-black/68 via-black/30 to-black/10"
+          />
+          <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/55 to-transparent" />
+          <div className="relative flex min-w-0 flex-wrap gap-2 rounded-xl bg-black/18 p-1.5 ring-1 ring-white/10 backdrop-blur-sm">
+            <span className="rounded-md bg-white/95 px-2.5 py-1 text-xs font-semibold leading-none text-ink shadow-sm">
               {getCategoryLabel(activity.category, locale)}
             </span>
-            <span className="rounded-md bg-white/75 px-2.5 py-1 text-xs font-medium leading-none text-zinc-700">
+            <span className="rounded-md bg-white/85 px-2.5 py-1 text-xs font-medium leading-none text-zinc-700 shadow-sm">
               {getCardKindLabel(isActivityInfo, locale)}
             </span>
           </div>
-          <div className="relative flex shrink-0 flex-col items-end gap-2">
+          <div className="relative flex shrink-0 flex-col items-end gap-2 rounded-xl bg-black/18 p-1.5 ring-1 ring-white/10 backdrop-blur-sm">
             {!isActivityInfo ? (
               <ActivityStatusBadge status={displayStatus} locale={locale} />
             ) : null}
-            <span className="rounded-md bg-white/80 px-2.5 py-1 text-xs font-medium leading-none text-zinc-700">
+            <span className="rounded-md bg-white/88 px-2.5 py-1 text-xs font-medium leading-none text-zinc-700 shadow-sm">
               {t.activityLabels.timeStates[timeState]}
             </span>
           </div>
