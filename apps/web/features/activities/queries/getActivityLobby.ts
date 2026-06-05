@@ -9,6 +9,7 @@ import {
 } from "@/features/public-events/queries/getPublicEvents";
 import type { ActivityCardViewModel } from "../types";
 import {
+  getActivities,
   activityCardSelect,
   getActivityCoverTone,
   getActivityCardViewModel,
@@ -314,4 +315,12 @@ export async function getActivityLobby(
       viewerProfileId,
     ),
   };
+}
+
+export async function getActivityLobbyPreview() {
+  return getActivities({
+    includePast: false,
+    limit: 12,
+    viewerProfileId: null,
+  });
 }

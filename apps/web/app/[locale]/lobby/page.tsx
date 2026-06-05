@@ -1,8 +1,14 @@
 import { PageContainer } from "@/components/layout/PageContainer";
-import { ActivityLobbyView } from "@/features/activities/components/ActivityLobbyView";
+import {
+  ActivityLobbyPreviewView,
+  ActivityLobbyView,
+} from "@/features/activities/components/ActivityLobbyView";
 import { ActivityModeTabs } from "@/features/activities/components/ActivityModeTabs";
-import { getActivityLobby } from "@/features/activities/queries/getActivityLobby";
-import { ensureCurrentUserProfile } from "@/lib/auth";
+import {
+  getActivityLobby,
+  getActivityLobbyPreview,
+} from "@/features/activities/queries/getActivityLobby";
+import { getOptionalCurrentUserProfile } from "@/lib/auth";
 
 type ActivityLobbyPageProps = {
   params: Promise<{
@@ -16,7 +22,28 @@ export default async function ActivityLobbyPage({
   params,
 }: ActivityLobbyPageProps) {
   const { locale } = await params;
-  const profile = await ensureCurrentUserProfile(locale);
+  const profile = await getOptionalCurrentUserProfile();
+
+  if (!profile) {
+    const previewActivities = await getActivityLobbyPreview().catch(
+      (error: unknown) => {
+        console.error("Failed to load public activity lobby preview", error);
+
+        return [];
+      },
+    );
+
+    return (
+      <PageContainer className="space-y-6 py-5 sm:space-y-8 sm:py-8">
+        <ActivityModeTabs current="lobby" locale={locale} />
+        <ActivityLobbyPreviewView
+          activities={previewActivities}
+          locale={locale}
+        />
+      </PageContainer>
+    );
+  }
+
   const lobby = await getActivityLobby(profile.id).catch((error: unknown) => {
     console.error("Failed to load activity lobby", error);
 

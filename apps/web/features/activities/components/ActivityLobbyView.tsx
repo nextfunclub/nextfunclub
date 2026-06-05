@@ -338,6 +338,7 @@ function ActivityLobbySection({
             <ActivityCard
               key={activity.id}
               activity={activity}
+              favoriteRedirectPath="/lobby"
               isAuthenticated
               locale={locale}
               showFavoriteButton
@@ -512,6 +513,136 @@ function getEmptyLobbyActions(locale: string): EmptyLobbyAction[] {
       tone: "tertiary",
     },
   ];
+}
+
+function getActivityLobbyPreviewCopy(locale: string) {
+  if (locale === "fr") {
+    return {
+      eyebrow: "Hall d'equipe",
+      title: "Regardez les plans en cours",
+      description:
+        "Vous pouvez parcourir les activites et les equipes publiques avant de vous connecter. Connectez-vous ensuite pour rejoindre, sauvegarder et voir les activites de vos amis.",
+      signIn: "Se connecter",
+      browse: "Decouvrir",
+      emptyTitle: "Aucun plan pour le moment",
+      emptyDescription:
+        "Les activites et equipes publiques apparaitront ici des qu'elles seront disponibles.",
+      sectionTitle: "Activites et equipes visibles",
+      sectionDescription:
+        "Une premiere vue pour choisir quoi faire, puis lancer ou rejoindre une equipe.",
+    };
+  }
+
+  if (locale === "en") {
+    return {
+      eyebrow: "Team lobby",
+      title: "See what people are planning",
+      description:
+        "Browse public activities and teams before signing in. Sign in when you want to join, save, or see what friends are doing.",
+      signIn: "Sign in",
+      browse: "Discover",
+      emptyTitle: "No plans yet",
+      emptyDescription:
+        "Public activities and teams will appear here when they are available.",
+      sectionTitle: "Visible activities and teams",
+      sectionDescription:
+        "Start from what looks interesting, then join or create a team.",
+    };
+  }
+
+  return {
+    eyebrow: "组队大厅",
+    title: "先看看大家在组什么局",
+    description:
+      "游客也可以浏览公开活动和正在组队的车队。想报名、收藏或查看好友动态时，再登录即可。",
+    signIn: "登录进入个人大厅",
+    browse: "继续发现活动",
+    emptyTitle: "暂时还没有公开内容",
+    emptyDescription: "有新的活动或车队后，会先显示在这里。",
+    sectionTitle: "可浏览的活动和车队",
+    sectionDescription: "先看看有什么想去的，再选择报名、收藏或发起自己的车队。",
+  };
+}
+
+export function ActivityLobbyPreviewView({
+  activities,
+  locale,
+}: {
+  activities: ActivityCardViewModel[];
+  locale: string;
+}) {
+  const previewCopy = getActivityLobbyPreviewCopy(locale);
+
+  return (
+    <div className="space-y-6">
+      <section className="rounded-[1.75rem] border border-[#dfceb0] bg-[linear-gradient(145deg,rgba(255,252,247,0.98),rgba(246,237,222,0.94))] px-5 py-6 shadow-[0_12px_30px_rgba(94,80,52,0.06)] sm:px-6 sm:py-7">
+        <div className="grid gap-5 md:grid-cols-[1fr_auto] md:items-end">
+          <div className="max-w-2xl">
+            <p className="text-sm font-medium text-moss">
+              {previewCopy.eyebrow}
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold leading-tight text-ink sm:text-4xl">
+              {previewCopy.title}
+            </h1>
+            <p className="mt-3 text-sm leading-7 text-zinc-600 sm:text-base">
+              {previewCopy.description}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row md:flex-col lg:flex-row">
+            <Link
+              href={withLocale(locale, "/sign-in")}
+              className="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-full bg-ink px-5 text-sm font-semibold text-white transition hover:bg-zinc-800"
+            >
+              {previewCopy.signIn}
+            </Link>
+            <Link
+              href={withLocale(locale, "/activities")}
+              className="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-full border border-[#d8cbb8] bg-white/75 px-5 text-sm font-semibold text-[#705f4d] transition hover:bg-white"
+            >
+              {previewCopy.browse}
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-4 rounded-[1.75rem] border border-black/8 bg-white/78 p-4 shadow-sm shadow-black/5 sm:p-5">
+        <div>
+          <h2 className="text-xl font-semibold text-ink">
+            {previewCopy.sectionTitle}
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-zinc-500">
+            {previewCopy.sectionDescription}
+          </p>
+        </div>
+
+        {activities.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-zinc-200 bg-paper/65 px-4 py-7 text-center">
+            <p className="text-sm font-semibold text-zinc-700">
+              {previewCopy.emptyTitle}
+            </p>
+            <p className="mt-1 text-sm leading-6 text-zinc-500">
+              {previewCopy.emptyDescription}
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {activities.map((activity) => (
+              <ActivityCard
+                key={activity.id}
+                activity={activity}
+                favoriteRedirectPath="/lobby"
+                isAuthenticated={false}
+                locale={locale}
+                showFavoriteButton
+                sourceSurface="activity_list"
+              />
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
 }
 
 export function ActivityLobbyView({
