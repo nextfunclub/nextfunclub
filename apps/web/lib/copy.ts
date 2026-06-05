@@ -130,12 +130,12 @@ const copy = {
       emptyRecentDescription: "有新的活动后会显示在这里。",
     },
     activities: {
-      title: "活动发现",
+      title: "发现活动",
       description:
-        "优先展示正在进行和即将开始的活动，需要时再用搜索和筛选缩小范围。",
+        "先看看近期真实活动；想一起去，再进入详情查看车队或发起组局。",
       scopeTitle: "当前展示范围",
       scopeDescription:
-        "展示公开活动，默认优先显示进行中和未开始的可参与活动，已结束活动靠后。",
+        "默认优先展示进行中和即将开始的活动，已结束活动会排在后面。",
       emptyTitle: "暂无活动",
       emptyDescription: "当前没有可展示的公开活动，创建新活动后会显示在这里。",
       emptyFilteredTitle: "没有匹配活动",
@@ -394,11 +394,16 @@ const copy = {
     },
     activityOwner: {
       title: "发起人操作",
-      cancel: "取消活动",
+      cancel: "取消组局",
       cancelling: "取消中...",
-      cancelDescription: "取消后活动会从列表隐藏，用户不能继续报名。",
-      cancelConfirm: "确定要取消这个活动吗？取消后用户将不能继续报名。",
-      cancelledHint: "活动已取消，用户无法继续报名。",
+      cancelDescription: "取消后这场组局会停止报名，并从可参与列表中隐藏。",
+      cancelConfirm: "确定要取消这个组局吗？取消后用户将不能继续报名。",
+      cancelConfirmTitle: "确认取消组局？",
+      cancelConfirmDescription:
+        "取消后，这场组局会停止报名。已报名的用户仍能看到状态变化。",
+      cancelConfirmBack: "再想想",
+      cancelConfirmSubmit: "确认取消",
+      cancelledHint: "组局已取消，用户无法继续报名。",
       endedHint: "活动已结束，不能再取消。",
       refreshError: "请稍后再试。",
       permissionError: "只有活动发起人可以取消这个活动。",
@@ -785,12 +790,12 @@ const copy = {
       emptyRecentDescription: "New activities will appear here.",
     },
     activities: {
-      title: "Activity discovery",
+      title: "Discover activities",
       description:
-        "Ongoing and upcoming activities come first. Search or filter when you need a narrower list.",
+        "Browse real upcoming activities first, then open details to join or start a crew.",
       scopeTitle: "Current scope",
       scopeDescription:
-        "Showing public activities, with ongoing and upcoming joinable activities first and ended activities later.",
+        "Ongoing and upcoming activities come first, while ended activities stay lower in the list.",
       emptyTitle: "No activities",
       emptyDescription:
         "There are no public activities to show right now. New activities will appear here.",
@@ -1069,13 +1074,18 @@ const copy = {
     },
     activityOwner: {
       title: "Organizer actions",
-      cancel: "Cancel activity",
+      cancel: "Cancel crew",
       cancelling: "Cancelling...",
       cancelDescription:
-        "After cancellation, the activity is hidden from lists and users cannot join.",
+        "After cancellation, this crew stops taking new join requests and is hidden from joinable lists.",
       cancelConfirm:
-        "Cancel this activity? Users will no longer be able to join.",
-      cancelledHint: "This activity is cancelled. Users can no longer join.",
+        "Cancel this crew? Users will no longer be able to join.",
+      cancelConfirmTitle: "Cancel this crew?",
+      cancelConfirmDescription:
+        "This crew will stop taking new join requests. People who already joined can still see the status change.",
+      cancelConfirmBack: "Keep it",
+      cancelConfirmSubmit: "Cancel crew",
+      cancelledHint: "This crew is cancelled. Users can no longer join.",
       endedHint: "This activity has ended and can no longer be cancelled.",
       refreshError: "Try again later.",
       permissionError: "Only the organizer can cancel this activity.",
@@ -1490,12 +1500,12 @@ const copy = {
         "Les nouvelles activités publiques apparaîtront ici.",
     },
     activities: {
-      title: "Découvrir des activités",
+      title: "Découvrir les sorties",
       description:
-        "Les activités en cours et à venir passent d'abord. Recherchez ou filtrez pour affiner.",
+        "Parcourez les sorties à venir, puis ouvrez le détail pour rejoindre ou lancer une équipe.",
       scopeTitle: "Périmètre affiché",
       scopeDescription:
-        "Activités publiques, avec les activités en cours ou à venir d'abord, puis les activités terminées.",
+        "Les sorties en cours ou à venir apparaissent d'abord, les sorties terminées restent plus bas.",
       emptyTitle: "Aucune activité",
       emptyDescription:
         "Aucune activité publique à afficher pour le moment. Les nouvelles activités apparaîtront ici.",
@@ -1780,14 +1790,19 @@ const copy = {
     },
     activityOwner: {
       title: "Actions organisateur",
-      cancel: "Annuler l'activité",
+      cancel: "Annuler l'équipe",
       cancelling: "Annulation...",
       cancelDescription:
-        "Après annulation, l'activité est masquée des listes et les utilisateurs ne peuvent plus la rejoindre.",
+        "Après annulation, cette équipe n'accepte plus de demandes et disparaît des listes à rejoindre.",
       cancelConfirm:
-        "Annuler cette activité ? Les utilisateurs ne pourront plus la rejoindre.",
+        "Annuler cette équipe ? Les utilisateurs ne pourront plus la rejoindre.",
+      cancelConfirmTitle: "Annuler cette équipe ?",
+      cancelConfirmDescription:
+        "Cette équipe n'acceptera plus de demandes. Les personnes déjà inscrites verront le changement de statut.",
+      cancelConfirmBack: "Retour",
+      cancelConfirmSubmit: "Confirmer",
       cancelledHint:
-        "Cette activité est annulée. Les utilisateurs ne peuvent plus la rejoindre.",
+        "Cette équipe est annulée. Les utilisateurs ne peuvent plus la rejoindre.",
       endedHint: "Cette activité est terminée et ne peut plus être annulée.",
       refreshError: "Réessayez plus tard.",
       permissionError: "Seul l'organisateur peut annuler cette activité.",

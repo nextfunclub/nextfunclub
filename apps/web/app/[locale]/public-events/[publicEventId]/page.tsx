@@ -110,10 +110,10 @@ export default async function PublicEventDetailPage({
         {t.backToPublicEvents}
       </Link>
 
-      <div className="relative flex min-h-64 items-end overflow-hidden rounded-[1.5rem] bg-[#d9e9ee] p-4 shadow-[0_14px_30px_rgba(58,49,34,0.12)] sm:p-6 md:min-h-[26rem]">
+      <div className="relative flex min-h-64 items-end overflow-hidden rounded-[1.5rem] bg-[#d9e9ee] p-4 shadow-[0_18px_42px_rgba(58,49,34,0.14)] sm:p-6 md:min-h-[26rem]">
         <ActivityCoverImage
           src={publicEvent.coverImageUrl}
-          overlayClassName="bg-gradient-to-t from-black/64 via-black/22 to-black/8"
+          overlayClassName="bg-gradient-to-t from-black/78 via-black/36 to-black/12"
         />
         <div className="absolute right-4 top-4 z-30 flex items-center gap-2 sm:right-6 sm:top-6">
           <PublicEventFavoriteButton
@@ -132,7 +132,8 @@ export default async function PublicEventDetailPage({
             variant="icon"
           />
         </div>
-        <div className="relative max-w-4xl space-y-4">
+        <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/65 to-transparent" />
+        <div className="relative max-w-4xl space-y-4 rounded-[1.25rem] bg-black/28 p-3 ring-1 ring-white/10 backdrop-blur-sm sm:p-4">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-ink shadow-sm">
               {getCategoryLabel(publicEvent.category, locale)}
@@ -146,7 +147,7 @@ export default async function PublicEventDetailPage({
               </span>
             ) : null}
           </div>
-          <h1 className="text-3xl font-semibold tracking-normal text-white sm:text-4xl md:text-5xl">
+          <h1 className="text-3xl font-semibold leading-tight tracking-normal text-white [text-shadow:0_2px_18px_rgba(0,0,0,0.48)] sm:text-4xl md:text-5xl">
             {publicEvent.title}
           </h1>
           <div className="grid gap-2 text-sm text-white/92 sm:grid-cols-3">
