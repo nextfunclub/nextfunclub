@@ -164,7 +164,17 @@ export async function updateActivityAction(
     );
   }
 
-  if (result.data.capacity < editableActivity._count.participants) {
+  const submittedCapacity = result.data.capacityLimitEnabled
+    ? result.data.capacity
+    : 0;
+  const submittedMinParticipants = result.data.capacityLimitEnabled
+    ? (result.data.minParticipants ?? null)
+    : null;
+
+  if (
+    submittedCapacity > 0 &&
+    submittedCapacity < editableActivity._count.participants
+  ) {
     return buildActivityErrorState(
       previousState,
       rawInput,
@@ -204,8 +214,8 @@ export async function updateActivityAction(
           longitude: result.data.longitude ?? null,
           startAt,
           endAt,
-          capacity: result.data.capacity,
-          minParticipants: result.data.minParticipants ?? null,
+          capacity: submittedCapacity,
+          minParticipants: submittedMinParticipants,
           requiresApproval: result.data.requiresApproval,
           priceType: result.data.priceType,
           priceText: result.data.priceText,

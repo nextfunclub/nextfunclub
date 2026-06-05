@@ -39,7 +39,6 @@ const importFieldKeys = [
   "endAt",
   "address",
   "category",
-  "capacity",
   "coverImageUrl",
   "description",
   "itinerary",
@@ -80,7 +79,6 @@ function buildDefaultFieldSelection(
     endAt: Boolean(values.endAt),
     address: Boolean(values.address),
     category: Boolean(values.category),
-    capacity: Boolean(values.capacity),
     coverImageUrl: Boolean(values.coverImageUrl),
     description: Boolean(values.description),
     itinerary: Boolean(values.itinerary),
@@ -173,6 +171,7 @@ export function ActivityLinkImportPanel({
 }: ActivityLinkImportPanelProps) {
   const t = getCopy(locale).form;
   const supportedSites = activityLinkImportSites;
+  const [isEnabled, setIsEnabled] = useState(false);
   const [url, setUrl] = useState("");
   const [error, setError] = useState("");
   const [isApplied, setIsApplied] = useState(false);
@@ -191,7 +190,6 @@ export function ActivityLinkImportPanel({
       endAt: t.endAt,
       address: t.address,
       category: t.category,
-      capacity: t.capacity,
       coverImageUrl: t.coverImage,
       description: t.description,
       itinerary: t.itinerary,
@@ -205,6 +203,17 @@ export function ActivityLinkImportPanel({
     setIsApplied(false);
     setError("");
     setPreview(null);
+  }
+
+  function handleEnabledChange(nextEnabled: boolean) {
+    setIsEnabled(nextEnabled);
+
+    if (!nextEnabled) {
+      setUrl("");
+      setError("");
+      setPreview(null);
+      setIsApplied(false);
+    }
   }
 
   async function previewLink() {
@@ -337,12 +346,24 @@ export function ActivityLinkImportPanel({
   return (
     <section className="rounded-lg border border-black/10 bg-paper/70 p-3 sm:p-4">
       <div className="flex items-start gap-3">
+        <input
+          checked={isEnabled}
+          className="mt-2 h-4 w-4 shrink-0 rounded border-zinc-300 text-moss focus:ring-moss/30"
+          id="activity-link-import-enabled"
+          onChange={(event) => handleEnabledChange(event.target.checked)}
+          type="checkbox"
+        />
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-moss ring-1 ring-black/10">
           <LinkIcon className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <p className="text-sm font-semibold text-ink">{t.linkImportTitle}</p>
+            <label
+              className="cursor-pointer text-sm font-semibold text-ink"
+              htmlFor="activity-link-import-enabled"
+            >
+              {t.linkImportToggleLabel}
+            </label>
             <button
               aria-label={t.linkImportSupportedSitesAriaLabel}
               className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-zinc-500 transition hover:bg-white hover:text-moss"
@@ -408,35 +429,48 @@ export function ActivityLinkImportPanel({
         </div>
       ) : null}
 
-      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-        <Input
-          className="min-w-0 flex-1"
-          onChange={(event) => handleUrlChange(event.target.value)}
-          onKeyDown={handleUrlKeyDown}
-          placeholder={t.linkImportPlaceholder}
-          type="url"
-          value={url}
-        />
-        <Button
-          className="w-full gap-2 whitespace-nowrap sm:w-auto"
-          disabled={!canSubmit}
-          onClick={previewLink}
-          type="button"
-          variant="secondary"
-        >
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <WandSparkles className="h-4 w-4" />
-          )}
-          {isLoading ? t.linkImportParsing : t.linkImportPreview}
-        </Button>
-      </div>
-      <p className="text-[11px] leading-5 text-zinc-500">
-        {t.linkImportSupportedSiteExamples}
-      </p>
+      {isEnabled ? (
+        <>
+          <div className="mt-3 grid gap-2">
+            <label
+              className="text-xs font-medium text-zinc-600"
+              htmlFor="activity-link-url"
+            >
+              {t.linkImportUrlLabel}
+            </label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                className="min-w-0 flex-1"
+                id="activity-link-url"
+                onChange={(event) => handleUrlChange(event.target.value)}
+                onKeyDown={handleUrlKeyDown}
+                placeholder={t.linkImportPlaceholder}
+                type="url"
+                value={url}
+              />
+              <Button
+                className="w-full gap-2 whitespace-nowrap sm:w-auto"
+                disabled={!canSubmit}
+                onClick={previewLink}
+                type="button"
+                variant="secondary"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <WandSparkles className="h-4 w-4" />
+                )}
+                {isLoading ? t.linkImportParsing : t.linkImportPreview}
+              </Button>
+            </div>
+          </div>
+          <p className="text-[11px] leading-5 text-zinc-500">
+            {t.linkImportSupportedSiteExamples}
+          </p>
+        </>
+      ) : null}
 
-      {error ? (
+      {isEnabled && error ? (
         <p
           className="mt-3 flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700"
           role="alert"
@@ -446,7 +480,7 @@ export function ActivityLinkImportPanel({
         </p>
       ) : null}
 
-      {preview ? (
+      {isEnabled && preview ? (
         <div className="mt-3 rounded-md border border-zinc-200 bg-white p-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">

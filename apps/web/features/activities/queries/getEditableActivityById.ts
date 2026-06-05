@@ -74,6 +74,7 @@ function getEditableActivityValues(
     startAt: formatParisDateTimeInput(activity.startAt),
     endAt: formatParisDateTimeInput(activity.endAt),
     capacity: String(activity.capacity),
+    capacityLimitEnabled: activity.capacity > 0,
     minParticipants: activity.minParticipants
       ? String(activity.minParticipants)
       : "",

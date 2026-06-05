@@ -113,6 +113,10 @@ export function getActivitySeatLabel(
     return labels.full;
   }
 
+  if (activity.capacity <= 0) {
+    return labels.unlimited;
+  }
+
   const remainingSeats = Math.max(
     activity.capacity - activity.participantCount,
     0,

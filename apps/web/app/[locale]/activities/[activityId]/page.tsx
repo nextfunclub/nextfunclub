@@ -413,14 +413,18 @@ export default async function ActivityDetailPage({
   const isClosed =
     !["RECRUITING", "CONFIRMED"].includes(activity.status) || isEndedByTime;
   const isCancelled = activity.status === "CANCELLED";
-  const isFull = activity.participantCount >= activity.capacity;
+  const isFull =
+    activity.capacity > 0 && activity.participantCount >= activity.capacity;
   const isOrganizer = viewerProfile?.id === activity.organizer.id;
   const canContactOrganizer = !isOrganizer;
   const canEditActivity = isOrganizer && !isCancelled && !isEndedByTime;
   const activityCategoryLabel = getCategoryLabel(activity.category, locale);
   const activityDateLabel = getActivityDateLabel(activity, locale);
   const activityLocationLabel = getActivityLocationLabel(activity);
-  const activityParticipantLabel = `${activity.participantCount}/${activity.capacity} ${t.common.people}`;
+  const activityParticipantLabel =
+    activity.capacity > 0
+      ? `${activity.participantCount}/${activity.capacity} ${t.common.people}`
+      : `${activity.participantCount} ${t.common.people}`;
   const activityPriceLabel = getActivityPriceLabel(activity, locale);
   const pendingParticipants =
     isOrganizer && activity.requiresApproval && viewerProfile
@@ -734,12 +738,14 @@ export default async function ActivityDetailPage({
                   {getActivitySeatLabel(activity, locale)}
                 </span>
               </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100">
-                <div
-                  className="h-full rounded-full bg-moss"
-                  style={{ width: `${participantPercent}%` }}
-                />
-              </div>
+              {activity.capacity > 0 ? (
+                <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100">
+                  <div
+                    className="h-full rounded-full bg-moss"
+                    style={{ width: `${participantPercent}%` }}
+                  />
+                </div>
+              ) : null}
             </div>
             <ActivityFriendSignalPanel locale={locale} signal={friendSignal} />
             <p className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2">

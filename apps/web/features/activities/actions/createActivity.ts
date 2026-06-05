@@ -254,6 +254,12 @@ export async function createActivityAction(
   const importSourceHost = importSourceUrl
     ? new URL(importSourceUrl).hostname.replace(/^www\./i, "")
     : null;
+  const submittedCapacity = result.data.capacityLimitEnabled
+    ? result.data.capacity
+    : 0;
+  const submittedMinParticipants = result.data.capacityLimitEnabled
+    ? (result.data.minParticipants ?? null)
+    : null;
 
   try {
     const activity = await prisma.activity.create({
@@ -271,8 +277,8 @@ export async function createActivityAction(
         longitude: result.data.longitude ?? null,
         startAt,
         endAt,
-        capacity: result.data.capacity,
-        minParticipants: result.data.minParticipants ?? null,
+        capacity: submittedCapacity,
+        minParticipants: submittedMinParticipants,
         requiresApproval: result.data.requiresApproval,
         priceType: result.data.priceType,
         priceText: result.data.priceText,
@@ -301,7 +307,7 @@ export async function createActivityAction(
     return buildActivityErrorState(
       previousState,
       rawInput,
-      "创建活动失败，请稍后重试。",
+      "发布组局失败，请稍后重试。",
     );
   }
 
@@ -316,7 +322,7 @@ export async function createActivityAction(
       entityType: "team",
       sourceSurface: publicEvent?.id ? "public_event_detail" : "activity_detail",
       properties: {
-        capacity: result.data.capacity,
+        capacity: submittedCapacity,
         category: result.data.category,
         city: result.data.city,
         has_public_event: Boolean(publicEvent?.id),

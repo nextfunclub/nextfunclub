@@ -39,8 +39,8 @@ const optionalNumber = z.preprocess(
   z.coerce
     .number()
     .int("请输入整数")
-    .min(1, "最少成团人数至少为 1 人")
-    .max(100, "最少成团人数最多为 100 人")
+    .min(1, "最少成局人数至少为 1 人")
+    .max(100, "最少成局人数最多为 100 人")
     .optional(),
 );
 const optionalCoordinate = (min: number, max: number, message: string) =>
@@ -78,8 +78,9 @@ export const createActivitySchema = z
     capacity: z.coerce
       .number()
       .int("请输入整数")
-      .min(2, "人数上限至少为 2 人")
+      .min(0, "人数上限不能为负数")
       .max(100, "人数上限最多为 100 人"),
+    capacityLimitEnabled: z.coerce.boolean().default(false),
     minParticipants: optionalNumber,
     requiresApproval: z.coerce.boolean().default(false),
     priceType: z.enum(priceTypeValues),
@@ -117,10 +118,22 @@ export const createActivitySchema = z
       });
     }
 
-    if (value.minParticipants && value.minParticipants > value.capacity) {
+    if (value.capacityLimitEnabled && value.capacity < 2) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "最少成团人数不能大于人数上限",
+        message: "限制人数时，人数上限至少为 2 人",
+        path: ["capacity"],
+      });
+    }
+
+    if (
+      value.capacity > 0 &&
+      value.minParticipants &&
+      value.minParticipants > value.capacity
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "最少成局人数不能大于人数上限",
         path: ["minParticipants"],
       });
     }
