@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum ActivityType {
@@ -22,6 +23,7 @@ enum ActivityCategory {
   TRAVEL
   FOOD
   EXHIBITION
+  THEATER
   OTHER
 }
 
@@ -48,6 +50,11 @@ enum ActivityVisibility {
   PRIVATE
 }
 
+enum PublicEventStatus {
+  SCHEDULED
+  CANCELLED
+}
+
 enum ParticipantStatus {
   JOINED
   PENDING
@@ -61,59 +68,233 @@ enum UserProfileStatus {
   DELETED
 }
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+enum CommentType {
+  QUESTION
+  SUGGESTION
+  REVIEW
+}
+
+enum NotificationType {
+  PARTICIPATION_PENDING
+  PARTICIPATION_CONFIRMED
+  PARTICIPATION_APPROVED
+  PARTICIPATION_REJECTED
+  ACTIVITY_UPDATED
+  ACTIVITY_CANCELLED
+  FRIEND_REQUEST
+  ACTIVITY_COMMENTED
+  COMMENT_REPLY
+  REPORT_CREATED
+}
+
+enum ReportTargetType {
+  USER_PROFILE
+  PUBLIC_EVENT
+  ACTIVITY
+  COMMENT
+}
+
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  INAPPROPRIATE_CONTENT
+  MISLEADING_INFORMATION
+  SAFETY_CONCERN
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
 model UserProfile {
-  id             String                @id @default(cuid())
-  clerkUserId    String                @unique
-  email          String?
-  nickname       String
-  firstName      String?
-  lastName       String?
-  username       String?
-  avatarUrl      String?
-  bio            String?
-  interests      String[]              @default([])
-  status         UserProfileStatus     @default(ACTIVE)
-  lastSignInAt   DateTime?
-  clerkCreatedAt DateTime?
-  clerkUpdatedAt DateTime?
-  clerkDeletedAt DateTime?
-  syncedAt       DateTime?
-  activities     Activity[]            @relation("ActivityOrganizer")
-  participations ActivityParticipant[]
-  following      UserFollow[]          @relation("UserFollowing")
-  followers      UserFollow[]          @relation("UserFollowers")
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
+  id                     String                @id @default(cuid())
+  clerkUserId            String                @unique
+  email                  String?
+  friendCode             String?               @unique @db.Char(6)
+  nickname               String
+  firstName              String?
+  lastName               String?
+  username               String?
+  avatarUrl              String?
+  bio                    String?
+  interests              String[]              @default([])
+  status                 UserProfileStatus     @default(ACTIVE)
+  role                   UserRole              @default(USER)
+  lastSignInAt           DateTime?
+  clerkCreatedAt         DateTime?
+  clerkUpdatedAt         DateTime?
+  clerkDeletedAt         DateTime?
+  syncedAt               DateTime?
+  activities             Activity[]            @relation("ActivityOrganizer")
+  participations         ActivityParticipant[]
+  comments               Comment[]
+  notifications          Notification[]        @relation("NotificationRecipient")
+  sentNotifications      Notification[]        @relation("NotificationActor")
+  favoriteActivities     ActivityFavorite[]
+  following              UserFollow[]          @relation("UserFollowing")
+  followers              UserFollow[]          @relation("UserFollowers")
+  sentFriendRequests     FriendRequest[]       @relation("FriendRequestRequester")
+  receivedFriendRequests FriendRequest[]       @relation("FriendRequestReceiver")
+  friendshipsAsUserA     Friendship[]          @relation("FriendshipUserA")
+  friendshipsAsUserB     Friendship[]          @relation("FriendshipUserB")
+  conversationsAsUserA   Conversation[]        @relation("ConversationUserA")
+  conversationsAsUserB   Conversation[]        @relation("ConversationUserB")
+  sentDirectMessages     DirectMessage[]       @relation("DirectMessageSender")
+  submittedReports       Report[]              @relation("ReportReporter")
+  reviewedReports        Report[]              @relation("ReportReviewer")
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  publicEventFavorites   PublicEventFavorite[]
+
+  @@index([nickname])
+  @@index([role, status])
 }
 
 model Activity {
-  id             String                @id @default(cuid())
-  title          String
-  description    String
-  itinerary      String?
-  type           ActivityType          @default(LOCAL)
-  category       ActivityCategory      @default(OTHER)
-  city           String                @default("Paris")
-  destination    String?
-  address        String
-  startAt        DateTime
-  endAt          DateTime?
-  capacity       Int
-  minParticipants Int?
-  requiresApproval Boolean             @default(false)
-  priceType      PriceType             @default(FREE)
-  priceText      String
-  coverImageUrl  String?
-  status         ActivityStatus        @default(RECRUITING)
-  visibility     ActivityVisibility    @default(PUBLIC)
-  organizerId    String
-  organizer      UserProfile           @relation("ActivityOrganizer", fields: [organizerId], references: [id], onDelete: Cascade)
-  participants   ActivityParticipant[]
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
+  id               String                @id @default(cuid())
+  title            String
+  description      String
+  itinerary        String?
+  type             ActivityType          @default(LOCAL)
+  category         ActivityCategory      @default(OTHER)
+  city             String                @default("Paris")
+  destination      String?
+  address          String
+  latitude         Float?
+  longitude        Float?
+  startAt          DateTime
+  endAt            DateTime?
+  capacity         Int
+  minParticipants  Int?
+  requiresApproval Boolean               @default(false)
+  priceType        PriceType             @default(FREE)
+  priceText        String
+  coverImageUrl    String?
+  source           String?
+  sourceUrl        String?               @unique
+  externalSource   String?
+  externalId       String?
+  externalUrl      String?
+  sourcePayload    Json?
+  importedAt       DateTime?
+  status           ActivityStatus        @default(RECRUITING)
+  visibility       ActivityVisibility    @default(PUBLIC)
+  organizerId      String
+  organizer        UserProfile           @relation("ActivityOrganizer", fields: [organizerId], references: [id], onDelete: Cascade)
+  publicEventId    String?
+  publicEvent      PublicEvent?          @relation(fields: [publicEventId], references: [id], onDelete: SetNull)
+  merchantId       String?
+  merchant         Merchant?             @relation(fields: [merchantId], references: [id], onDelete: SetNull)
+  participants     ActivityParticipant[]
+  comments         Comment[]
+  notifications    Notification[]
+  sourceLinks      ActivitySourceLink[]
+  favorites        ActivityFavorite[]
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
 
   @@index([city, startAt])
+  @@index([city, latitude, longitude])
   @@index([organizerId])
+  @@index([publicEventId, status, startAt])
+  @@index([merchantId])
+  @@index([source])
+  @@index([externalSource, externalId])
+  @@index([externalUrl])
+  @@index([importedAt])
+}
+
+model PublicEvent {
+  id             String             @id @default(cuid())
+  title          String
+  description    String
+  category       ActivityCategory   @default(OTHER)
+  city           String             @default("Paris")
+  address        String
+  latitude       Float?
+  longitude      Float?
+  startAt        DateTime
+  endAt          DateTime?
+  priceType      PriceType          @default(FREE)
+  priceText      String?
+  coverImageUrl  String?
+  officialUrl    String?
+  status         PublicEventStatus  @default(SCHEDULED)
+  visibility     ActivityVisibility @default(PUBLIC)
+  source         String?
+  sourceUrl      String?            @unique
+  externalSource String?
+  externalId     String?
+  externalUrl    String?
+  sourcePayload  Json?
+  importedAt     DateTime?
+  lastSyncedAt   DateTime?
+  teams          Activity[]
+  favorites      PublicEventFavorite[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([city, startAt])
+  @@index([status, startAt])
+  @@index([visibility, startAt])
+  @@index([externalSource, externalId])
+  @@index([externalUrl])
+  @@index([importedAt])
+}
+
+model Merchant {
+  id             String     @id @default(cuid())
+  slug           String     @unique
+  name           String
+  description    String
+  logoUrl        String?
+  city           String     @default("Paris")
+  address        String?
+  latitude       Float?
+  longitude      Float?
+  websiteUrl     String?
+  contactEmail   String?
+  externalSource String?
+  externalId     String?
+  externalUrl    String?
+  sourcePayload  Json?
+  importedAt     DateTime?
+  isActive       Boolean    @default(true)
+  activities     Activity[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([isActive, city])
+  @@index([externalSource, externalId])
+  @@index([externalUrl])
+  @@index([importedAt])
+}
+
+model ActivitySourceLink {
+  id         String   @id @default(cuid())
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  source     String
+  sourceUrl  String   @unique
+  createdAt  DateTime @default(now())
+
+  @@index([activityId])
 }
 
 model ActivityParticipant {
@@ -133,6 +314,93 @@ model ActivityParticipant {
   @@index([userProfileId])
 }
 
+model ActivityFavorite {
+  id            String      @id @default(cuid())
+  activityId    String
+  userProfileId String
+  activity      Activity    @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+
+  @@unique([activityId, userProfileId])
+  @@index([userProfileId, createdAt])
+}
+
+model PublicEventFavorite {
+  id            String      @id @default(cuid())
+  publicEventId String
+  userProfileId String
+  publicEvent   PublicEvent @relation(fields: [publicEventId], references: [id], onDelete: Cascade)
+  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+
+  @@unique([publicEventId, userProfileId])
+  @@index([userProfileId, createdAt])
+}
+
+model Comment {
+  id                String      @id @default(cuid())
+  activityId        String
+  authorId          String
+  parentId          String?
+  type              CommentType @default(QUESTION)
+  content           String
+  pinnedByOrganizer Boolean     @default(false)
+  activity          Activity    @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  author            UserProfile @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent            Comment?    @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies           Comment[]   @relation("CommentReplies")
+  deletedAt         DateTime?
+  editedAt          DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([activityId, pinnedByOrganizer, createdAt])
+  @@index([activityId, parentId, createdAt])
+  @@index([authorId])
+  @@index([parentId])
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  type        NotificationType
+  recipientId String
+  recipient   UserProfile      @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actorId     String?
+  actor       UserProfile?     @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  activityId  String?
+  activity    Activity?        @relation(fields: [activityId], references: [id], onDelete: SetNull)
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([recipientId, readAt, createdAt])
+  @@index([activityId])
+}
+
+model Report {
+  id          String           @id @default(cuid())
+  reporterId  String
+  reporter    UserProfile      @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetType  ReportTargetType
+  targetId    String
+  reason      ReportReason
+  description String?
+  status      ReportStatus     @default(PENDING)
+  reviewerId  String?
+  reviewer    UserProfile?     @relation("ReportReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  reviewNote  String?
+  reviewedAt  DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([reporterId, targetType, targetId])
+  @@index([targetType, targetId])
+  @@index([status, createdAt])
+  @@index([reporterId, createdAt])
+  @@index([reviewerId])
+}
+
 model UserFollow {
   id          String      @id @default(cuid())
   followerId  String
@@ -143,4 +411,93 @@ model UserFollow {
 
   @@unique([followerId, followingId])
   @@index([followingId])
+}
+
+model FriendRequest {
+  id             String              @id @default(cuid())
+  requesterId    String
+  receiverId     String
+  pendingPairKey String?             @unique
+  status         FriendRequestStatus @default(PENDING)
+  message        String?
+  requester      UserProfile         @relation("FriendRequestRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  receiver       UserProfile         @relation("FriendRequestReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  respondedAt    DateTime?
+  cancelledAt    DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([requesterId, status, createdAt])
+  @@index([receiverId, status, createdAt])
+  @@index([requesterId, receiverId, status])
+}
+
+model Friendship {
+  id        String      @id @default(cuid())
+  userAId   String
+  userBId   String
+  userA     UserProfile @relation("FriendshipUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB     UserProfile @relation("FriendshipUserB", fields: [userBId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+
+  @@unique([userAId, userBId])
+  @@index([userBId])
+}
+
+model Conversation {
+  id            String          @id @default(cuid())
+  userAId       String
+  userBId       String
+  userA         UserProfile     @relation("ConversationUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB         UserProfile     @relation("ConversationUserB", fields: [userBId], references: [id], onDelete: Cascade)
+  messages      DirectMessage[]
+  lastMessageAt DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@unique([userAId, userBId])
+  @@index([userAId, lastMessageAt])
+  @@index([userBId, lastMessageAt])
+  @@index([lastMessageAt])
+}
+
+model DirectMessage {
+  id             String       @id @default(cuid())
+  conversationId String
+  senderId       String
+  body           String
+  readAt         DateTime?
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         UserProfile  @relation("DirectMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([conversationId, createdAt])
+  @@index([senderId, createdAt])
+}
+
+model AnalyticsEvent {
+  id            String   @id @default(cuid())
+  name          String
+  environment   String
+  userProfileId String?
+  anonymousId   String?
+  sessionId     String?
+  locale        String
+  route         String
+  referrer      String?
+  userAgent     String?
+  deviceType    String?
+  sourceSurface String?
+  entityType    String?
+  entityId      String?
+  appVersion    String?
+  properties    Json?
+  createdAt     DateTime @default(now())
+
+  @@index([name, createdAt])
+  @@index([entityType, entityId, createdAt])
+  @@index([userProfileId, createdAt])
+  @@index([sourceSurface, createdAt])
+  @@index([environment, createdAt])
 }

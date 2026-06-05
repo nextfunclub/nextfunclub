@@ -8,12 +8,16 @@
     "build": "prisma generate && next build",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
+    "test": "node ../../scripts/run-node-tests.mjs features lib",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "db:copy-public-content": "tsx prisma/copy-public-content.ts",
+    "db:migrate-legacy-public-events": "tsx prisma/migrate-legacy-activity-info-to-public-events.ts"
   },
   "dependencies": {
+    "@chill-club/scraper-core": "file:../../packages/scraper-core",
     "@chill-club/shared": "file:../../packages/shared",
     "@chill-club/ui": "file:../../packages/ui",
     "@clerk/nextjs": "^6.12.0",
@@ -23,14 +27,17 @@
     "lucide-react": "^0.468.0",
     "next": "^15.1.4",
     "next-intl": "^3.26.3",
+    "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.54.2",
+    "sonner": "^2.0.7",
     "tailwind-merge": "^2.5.4",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.0.4",
     "@types/react-dom": "^19.0.2",
     "autoprefixer": "^10.4.20",

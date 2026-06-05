@@ -1,0 +1,846 @@
+"use client";
+
+import Link from "next/link";
+import { useMemo, useState } from "react";
+import { getCopy } from "@/lib/copy";
+import { withLocale } from "@/lib/routes";
+import { cn } from "@/lib/utils";
+import type { ActivityCardViewModel } from "../types";
+import { ActivityCard } from "./ActivityCard";
+
+type ActivityLobbyViewProps = {
+  createdActivities: ActivityCardViewModel[];
+  joinedActivities: ActivityCardViewModel[];
+  favoriteActivities: ActivityCardViewModel[];
+  friendHostedActivities: ActivityCardViewModel[];
+  friendJoinedActivities: ActivityCardViewModel[];
+  locale: string;
+};
+
+type LobbyFilterId =
+  | "all"
+  | "created"
+  | "joined"
+  | "favorites"
+  | "friendHosted"
+  | "friendJoined";
+
+type FilterOption = {
+  id: LobbyFilterId;
+  count: number | null;
+  label: string;
+};
+
+type EmptyLobbyAction = {
+  description: string;
+  href: string;
+  label: string;
+  tone: "primary" | "secondary" | "tertiary";
+};
+
+const lobbyFilterStyles: Record<
+  LobbyFilterId,
+  {
+    active: string;
+    badge: string;
+    idle: string;
+    idleBadge: string;
+  }
+> = {
+  all: {
+    active:
+      "border-[#d1c6b4] bg-[linear-gradient(135deg,rgba(243,239,230,0.98),rgba(233,228,217,0.95))] text-[#6d675c] shadow-[0_3px_8px_rgba(121,108,86,0.08)]",
+    badge: "bg-[rgba(255,255,255,0.72)] text-[#7d7467]",
+    idle:
+      "border-[#e7dfcf] bg-[rgba(255,252,246,0.94)] text-[#766b5d] hover:border-[#d7ccb5] hover:text-[#6d675c]",
+    idleBadge: "bg-[#f4ecde] text-[#957d56]",
+  },
+  created: {
+    active:
+      "border-[#d2bd81] bg-[linear-gradient(135deg,rgba(246,235,202,0.98),rgba(234,218,170,0.95))] text-[#7b5c1f] shadow-[0_3px_8px_rgba(177,141,58,0.12)]",
+    badge: "bg-[rgba(255,249,236,0.78)] text-[#8f6a24]",
+    idle:
+      "border-[#e7dfcf] bg-[rgba(255,252,246,0.94)] text-[#7b6850] hover:border-[#d7c189] hover:text-[#8a6729]",
+    idleBadge: "bg-[#f6ecd6] text-[#a27b33]",
+  },
+  joined: {
+    active:
+      "border-[#c3ceda] bg-[linear-gradient(135deg,rgba(226,234,242,0.98),rgba(207,219,231,0.95))] text-[#4d6783] shadow-[0_3px_8px_rgba(102,126,153,0.12)]",
+    badge: "bg-[rgba(246,250,253,0.8)] text-[#56708b]",
+    idle:
+      "border-[#e7dfcf] bg-[rgba(255,252,246,0.94)] text-[#766b5d] hover:border-[#c6d2dd] hover:text-[#59728d]",
+    idleBadge: "bg-[#eaf0f5] text-[#69829b]",
+  },
+  favorites: {
+    active:
+      "border-[#dbc4bc] bg-[linear-gradient(135deg,rgba(245,229,224,0.98),rgba(236,214,207,0.95))] text-[#86545f] shadow-[0_3px_8px_rgba(165,112,123,0.1)]",
+    badge: "bg-[rgba(255,247,246,0.8)] text-[#95626d]",
+    idle:
+      "border-[#e7dfcf] bg-[rgba(255,252,246,0.94)] text-[#766b5d] hover:border-[#dbc0bb] hover:text-[#8d5c67]",
+    idleBadge: "bg-[#f5e5e2] text-[#a36e79]",
+  },
+  friendHosted: {
+    active:
+      "border-[#d2b18e] bg-[linear-gradient(135deg,rgba(244,227,205,0.98),rgba(233,206,178,0.95))] text-[#8a5b35] shadow-[0_3px_8px_rgba(171,121,79,0.1)]",
+    badge: "bg-[rgba(255,248,241,0.78)] text-[#996742]",
+    idle:
+      "border-[#e7dfcf] bg-[rgba(255,252,246,0.94)] text-[#766b5d] hover:border-[#d4b08f] hover:text-[#946540]",
+    idleBadge: "bg-[#f5e7d8] text-[#a5754d]",
+  },
+  friendJoined: {
+    active:
+      "border-[#c5cda8] bg-[linear-gradient(135deg,rgba(233,238,217,0.98),rgba(219,226,191,0.95))] text-[#66743d] shadow-[0_3px_8px_rgba(125,138,77,0.1)]",
+    badge: "bg-[rgba(248,251,239,0.8)] text-[#738149]",
+    idle:
+      "border-[#e7dfcf] bg-[rgba(255,252,246,0.94)] text-[#766b5d] hover:border-[#c6cea7] hover:text-[#718048]",
+    idleBadge: "bg-[#eef2dc] text-[#7e8d53]",
+  },
+};
+
+type ActivityLobbySectionProps = {
+  activities: ActivityCardViewModel[];
+  description: string;
+  emptyDescription: string;
+  id: LobbyFilterId;
+  locale: string;
+  title: string;
+};
+
+type SectionFilterId = "all" | "team" | "publicEvent" | "upcoming" | "past";
+
+type SectionFilterOption = {
+  id: SectionFilterId;
+  count: number;
+  label: string;
+};
+
+function isPublicEventCard(activity: ActivityCardViewModel) {
+  return activity.type === "PUBLIC_EVENT" || Boolean(activity.isActivityInfo);
+}
+
+function isPastActivity(activity: ActivityCardViewModel, now = new Date()) {
+  const endAt = activity.endAt ? new Date(activity.endAt) : null;
+  const startAt = new Date(activity.startAt);
+
+  return (endAt ?? startAt).getTime() < now.getTime();
+}
+
+function getSectionFilterLabel(locale: string, id: SectionFilterId) {
+  if (locale === "fr") {
+    switch (id) {
+      case "team":
+        return "Plans";
+      case "publicEvent":
+        return "Public";
+      case "upcoming":
+        return "A venir";
+      case "past":
+        return "Passees";
+      default:
+        return "Tout";
+    }
+  }
+
+  if (locale === "en") {
+    switch (id) {
+      case "team":
+        return "Plans";
+      case "publicEvent":
+        return "Public";
+      case "upcoming":
+        return "Upcoming";
+      case "past":
+        return "Past";
+      default:
+        return "All";
+    }
+  }
+
+  switch (id) {
+    case "team":
+      return "组队";
+    case "publicEvent":
+      return "公共活动";
+    case "upcoming":
+      return "待完成";
+    case "past":
+      return "已过期";
+    default:
+      return "全部";
+  }
+}
+
+function getSectionEmptyFilterDescription(locale: string) {
+  if (locale === "fr") {
+    return "Aucun contenu ne correspond a ce filtre pour le moment.";
+  }
+
+  if (locale === "en") {
+    return "Nothing matches this filter yet.";
+  }
+
+  return "这个筛选下暂时没有内容。";
+}
+
+function filterSectionActivities(
+  activities: ActivityCardViewModel[],
+  filterId: SectionFilterId,
+) {
+  if (filterId === "team") {
+    return activities.filter((activity) => !isPublicEventCard(activity));
+  }
+
+  if (filterId === "publicEvent") {
+    return activities.filter(isPublicEventCard);
+  }
+
+  if (filterId === "upcoming") {
+    return activities.filter((activity) => !isPastActivity(activity));
+  }
+
+  if (filterId === "past") {
+    return activities.filter((activity) => isPastActivity(activity));
+  }
+
+  return activities;
+}
+
+function getSectionFilterOptions(
+  activities: ActivityCardViewModel[],
+  locale: string,
+  sectionId: LobbyFilterId,
+): SectionFilterOption[] {
+  const now = new Date();
+  const filterIds: SectionFilterId[] = ["all"];
+
+  if (sectionId === "favorites") {
+    filterIds.push("team", "publicEvent");
+  }
+
+  filterIds.push("upcoming", "past");
+
+  return filterIds.map((id) => ({
+    id,
+    count:
+      id === "team"
+        ? activities.filter((activity) => !isPublicEventCard(activity)).length
+        : id === "publicEvent"
+          ? activities.filter(isPublicEventCard).length
+          : id === "upcoming"
+            ? activities.filter((activity) => !isPastActivity(activity, now))
+                .length
+            : id === "past"
+              ? activities.filter((activity) => isPastActivity(activity, now))
+                  .length
+              : activities.length,
+    label: getSectionFilterLabel(locale, id),
+  }));
+}
+
+function ActivityLobbySection({
+  activities,
+  description,
+  emptyDescription,
+  id,
+  locale,
+  title,
+}: ActivityLobbySectionProps) {
+  const initialSectionFilter = activities.some(
+    (activity) => !isPastActivity(activity),
+  )
+    ? "upcoming"
+    : "all";
+  const [activeSectionFilter, setActiveSectionFilter] =
+    useState<SectionFilterId>(initialSectionFilter);
+  const sectionFilterOptions = useMemo(
+    () => getSectionFilterOptions(activities, locale, id),
+    [activities, id, locale],
+  );
+  const filteredActivities = useMemo(
+    () => filterSectionActivities(activities, activeSectionFilter),
+    [activities, activeSectionFilter],
+  );
+
+  return (
+    <section className="space-y-4 rounded-[1.75rem] border border-black/8 bg-white/78 p-4 shadow-sm shadow-black/5 sm:p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-semibold text-ink">{title}</h2>
+          <p className="mt-1 text-sm leading-6 text-zinc-500">{description}</p>
+        </div>
+        <span
+          className={cn(
+            "shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold",
+            activities.length > 0
+              ? "bg-moss/12 text-moss"
+              : "bg-zinc-100 text-zinc-500",
+          )}
+        >
+          {filteredActivities.length}
+        </span>
+      </div>
+
+      {activities.length > 0 ? (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {sectionFilterOptions.map((option) => {
+            const active = option.id === activeSectionFilter;
+
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setActiveSectionFilter(option.id)}
+                className={cn(
+                  "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition",
+                  active
+                    ? "border-[#d0b58b] bg-[#f1dfb6] text-[#76552a]"
+                    : "border-[#e7dfcf] bg-[#fffaf2] text-[#776b5f] hover:border-[#d7ccb5]",
+                )}
+              >
+                <span>{option.label}</span>
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                    active
+                      ? "bg-white/70 text-[#76552a]"
+                      : "bg-[#f4ecde] text-[#8a7455]",
+                  )}
+                >
+                  {option.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {activities.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-zinc-200 bg-paper/65 px-4 py-6">
+          <p className="text-sm font-semibold text-zinc-700">
+            {getCopy(locale).activityLobby.emptySectionTitle}
+          </p>
+          <p className="mt-1 text-sm leading-6 text-zinc-500">
+            {emptyDescription}
+          </p>
+        </div>
+      ) : filteredActivities.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-zinc-200 bg-paper/65 px-4 py-6">
+          <p className="text-sm font-semibold text-zinc-700">
+            {getCopy(locale).activityLobby.emptySectionTitle}
+          </p>
+          <p className="mt-1 text-sm leading-6 text-zinc-500">
+            {getSectionEmptyFilterDescription(locale)}
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {filteredActivities.map((activity) => (
+            <ActivityCard
+              key={activity.id}
+              activity={activity}
+              favoriteRedirectPath="/lobby"
+              isAuthenticated
+              locale={locale}
+              showFavoriteButton
+              sourceSurface="profile"
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function getAllLabel(locale: string) {
+  if (locale === "fr") {
+    return "Tout";
+  }
+
+  if (locale === "en") {
+    return "All";
+  }
+
+  return "全部";
+}
+
+function getFilterLabel(locale: string, id: LobbyFilterId, fallback: string) {
+  if (locale === "fr") {
+    switch (id) {
+      case "created":
+        return "Creees";
+      case "joined":
+        return "Rejointes";
+      case "favorites":
+        return "Favoris";
+      case "friendHosted":
+        return "Amis hotes";
+      case "friendJoined":
+        return "Amis inscrits";
+      default:
+        return fallback;
+    }
+  }
+
+  if (locale === "en") {
+    switch (id) {
+      case "created":
+        return "Hosted by me";
+      case "joined":
+        return "Joined by me";
+      case "favorites":
+        return "Favorites";
+      case "friendHosted":
+        return "Hosted by friends";
+      case "friendJoined":
+        return "Joined by friends";
+      default:
+        return fallback;
+    }
+  }
+
+  switch (id) {
+    case "created":
+      return "我发起的";
+    case "joined":
+      return "我参加的";
+    case "favorites":
+      return "我收藏的";
+    case "friendHosted":
+      return "好友发起";
+    case "friendJoined":
+      return "好友参加";
+    default:
+      return fallback;
+  }
+}
+
+function getEmptyCategoryCopy(locale: string) {
+  if (locale === "fr") {
+    return {
+      title: "Rien ici pour le moment.",
+      description:
+        "Essayez une autre categorie, lancez un plan, ou decouvrez de nouvelles activites pour remplir votre hall.",
+    };
+  }
+
+  if (locale === "en") {
+    return {
+      title: "Nothing in this section yet.",
+      description:
+        "Try another section, start a plan, or discover something new to bring this area to life.",
+    };
+  }
+
+  return {
+    title: "这里暂时还没有内容。",
+    description: "可以切换看看其他分类，先组个局，或者去发现新的活动。",
+  };
+}
+
+function getEmptyLobbyActions(locale: string): EmptyLobbyAction[] {
+  if (locale === "fr") {
+    return [
+      {
+        href: "/friends",
+        label: "Ajouter des amis",
+        description:
+          "Ajoutez d'abord vos proches. Des qu'ils lancent un plan ou rejoignent une sortie, vous le verrez ici.",
+        tone: "primary",
+      },
+      {
+        href: "/activities/new",
+        label: "Je lance un plan",
+        description:
+          "Parc, expo ou cinema... lancez quelque chose maintenant et voyez qui part avec vous.",
+        tone: "secondary",
+      },
+      {
+        href: "/activities",
+        label: "Decouvrir",
+        description:
+          "Regardez ce qui se passe deja, puis rejoignez ou gardez de cote ce qui vous attire.",
+        tone: "tertiary",
+      },
+    ];
+  }
+
+  if (locale === "en") {
+    return [
+      {
+        href: "/friends",
+        label: "Add friends first",
+        description:
+          "Bring your people in first. As soon as they start a plan or join one, it will show up here.",
+        tone: "primary",
+      },
+      {
+        href: "/activities/new",
+        label: "Start a plan",
+        description:
+          "Park, exhibit, or movie night. Start something now and see who wants in.",
+        tone: "secondary",
+      },
+      {
+        href: "/activities",
+        label: "Discover activities",
+        description:
+          "Browse what is already happening, then join or favorite whatever feels right.",
+        tone: "tertiary",
+      },
+    ];
+  }
+
+  return [
+    {
+      href: "/friends",
+      label: "先去加好友",
+      description:
+        "把常一起玩的人先加进来。他们一组局、一起报名，你马上就能在这里看到。",
+      tone: "primary",
+    },
+    {
+      href: "/activities/new",
+      label: "我来组局",
+      description:
+        "公园、逛展、看电影，想到什么就先组个局，看看谁会跟上你一起出发。",
+      tone: "secondary",
+    },
+    {
+      href: "/activities",
+      label: "去发现活动",
+      description:
+        "先逛逛大家都在玩什么，看到心动的活动就参加，或者先收藏起来。",
+      tone: "tertiary",
+    },
+  ];
+}
+
+function getActivityLobbyPreviewCopy(locale: string) {
+  if (locale === "fr") {
+    return {
+      eyebrow: "Hall d'equipe",
+      title: "Regardez les plans en cours",
+      description:
+        "Vous pouvez parcourir les activites et les equipes publiques avant de vous connecter. Connectez-vous ensuite pour rejoindre, sauvegarder et voir les activites de vos amis.",
+      signIn: "Se connecter",
+      browse: "Decouvrir",
+      emptyTitle: "Aucun plan pour le moment",
+      emptyDescription:
+        "Les activites et equipes publiques apparaitront ici des qu'elles seront disponibles.",
+      sectionTitle: "Activites et equipes visibles",
+      sectionDescription:
+        "Une premiere vue pour choisir quoi faire, puis lancer ou rejoindre une equipe.",
+    };
+  }
+
+  if (locale === "en") {
+    return {
+      eyebrow: "Team lobby",
+      title: "See what people are planning",
+      description:
+        "Browse public activities and teams before signing in. Sign in when you want to join, save, or see what friends are doing.",
+      signIn: "Sign in",
+      browse: "Discover",
+      emptyTitle: "No plans yet",
+      emptyDescription:
+        "Public activities and teams will appear here when they are available.",
+      sectionTitle: "Visible activities and teams",
+      sectionDescription:
+        "Start from what looks interesting, then join or create a team.",
+    };
+  }
+
+  return {
+    eyebrow: "组队大厅",
+    title: "先看看大家在组什么局",
+    description:
+      "游客也可以浏览公开活动和正在组队的车队。想报名、收藏或查看好友动态时，再登录即可。",
+    signIn: "登录进入个人大厅",
+    browse: "继续发现活动",
+    emptyTitle: "暂时还没有公开内容",
+    emptyDescription: "有新的活动或车队后，会先显示在这里。",
+    sectionTitle: "可浏览的活动和车队",
+    sectionDescription: "先看看有什么想去的，再选择报名、收藏或发起自己的车队。",
+  };
+}
+
+export function ActivityLobbyPreviewView({
+  activities,
+  locale,
+}: {
+  activities: ActivityCardViewModel[];
+  locale: string;
+}) {
+  const previewCopy = getActivityLobbyPreviewCopy(locale);
+
+  return (
+    <div className="space-y-6">
+      <section className="rounded-[1.75rem] border border-[#dfceb0] bg-[linear-gradient(145deg,rgba(255,252,247,0.98),rgba(246,237,222,0.94))] px-5 py-6 shadow-[0_12px_30px_rgba(94,80,52,0.06)] sm:px-6 sm:py-7">
+        <div className="grid gap-5 md:grid-cols-[1fr_auto] md:items-end">
+          <div className="max-w-2xl">
+            <p className="text-sm font-medium text-moss">
+              {previewCopy.eyebrow}
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold leading-tight text-ink sm:text-4xl">
+              {previewCopy.title}
+            </h1>
+            <p className="mt-3 text-sm leading-7 text-zinc-600 sm:text-base">
+              {previewCopy.description}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row md:flex-col lg:flex-row">
+            <Link
+              href={withLocale(locale, "/sign-in")}
+              className="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-full bg-ink px-5 text-sm font-semibold text-white transition hover:bg-zinc-800"
+            >
+              {previewCopy.signIn}
+            </Link>
+            <Link
+              href={withLocale(locale, "/activities")}
+              className="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-full border border-[#d8cbb8] bg-white/75 px-5 text-sm font-semibold text-[#705f4d] transition hover:bg-white"
+            >
+              {previewCopy.browse}
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-4 rounded-[1.75rem] border border-black/8 bg-white/78 p-4 shadow-sm shadow-black/5 sm:p-5">
+        <div>
+          <h2 className="text-xl font-semibold text-ink">
+            {previewCopy.sectionTitle}
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-zinc-500">
+            {previewCopy.sectionDescription}
+          </p>
+        </div>
+
+        {activities.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-zinc-200 bg-paper/65 px-4 py-7 text-center">
+            <p className="text-sm font-semibold text-zinc-700">
+              {previewCopy.emptyTitle}
+            </p>
+            <p className="mt-1 text-sm leading-6 text-zinc-500">
+              {previewCopy.emptyDescription}
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {activities.map((activity) => (
+              <ActivityCard
+                key={activity.id}
+                activity={activity}
+                favoriteRedirectPath="/lobby"
+                isAuthenticated={false}
+                locale={locale}
+                showFavoriteButton
+                sourceSurface="activity_list"
+              />
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+export function ActivityLobbyView({
+  createdActivities,
+  joinedActivities,
+  favoriteActivities,
+  friendHostedActivities,
+  friendJoinedActivities,
+  locale,
+}: ActivityLobbyViewProps) {
+  const t = getCopy(locale).activityLobby;
+  const [activeFilter, setActiveFilter] = useState<LobbyFilterId>("all");
+  const sections = [
+    {
+      id: "created" as const,
+      activities: createdActivities,
+      description: t.createdDescription,
+      emptyDescription: t.createdEmptyDescription,
+      title: t.createdTitle,
+    },
+    {
+      id: "joined" as const,
+      activities: joinedActivities,
+      description: t.joinedDescription,
+      emptyDescription: t.joinedEmptyDescription,
+      title: t.joinedTitle,
+    },
+    {
+      id: "favorites" as const,
+      activities: favoriteActivities,
+      description: t.favoriteDescription,
+      emptyDescription: t.favoriteEmptyDescription,
+      title: t.favoriteTitle,
+    },
+    {
+      id: "friendHosted" as const,
+      activities: friendHostedActivities,
+      description: t.friendHostedDescription,
+      emptyDescription: t.friendHostedEmptyDescription,
+      title: t.friendHostedTitle,
+    },
+    {
+      id: "friendJoined" as const,
+      activities: friendJoinedActivities,
+      description: t.friendJoinedDescription,
+      emptyDescription: t.friendJoinedEmptyDescription,
+      title: t.friendJoinedTitle,
+    },
+  ];
+  const filterOptions: FilterOption[] = [
+    { id: "all", count: null, label: getAllLabel(locale) },
+    ...sections.map((section) => ({
+      id: section.id,
+      count: section.activities.length,
+      label: getFilterLabel(locale, section.id, section.title),
+    })),
+  ];
+  const visibleSections = useMemo(
+    () =>
+      activeFilter === "all"
+        ? sections
+        : sections.filter((section) => section.id === activeFilter),
+    [activeFilter, sections],
+  );
+  const hasActivities = sections.some(
+    (section) => section.activities.length > 0,
+  );
+  const hasVisibleActivities = visibleSections.some(
+    (section) => section.activities.length > 0,
+  );
+  const emptyCategoryCopy = getEmptyCategoryCopy(locale);
+  const emptyLobbyActions = getEmptyLobbyActions(locale);
+  const normalizedEmptyLobbyActions =
+    locale === "zh-CN"
+      ? emptyLobbyActions.map((action, index) =>
+          index === 0
+            ? {
+                ...action,
+                description:
+                  "把常一起玩的人先加进来，有新局、新活动时，你马上就能在这里看到。",
+              }
+            : action,
+        )
+      : emptyLobbyActions;
+
+  return (
+    <div className="space-y-6">
+      <section className="space-y-3 text-center">
+        <div className="mx-auto max-w-3xl">
+          <h1 className="sr-only">{t.title}</h1>
+          <p className="text-sm leading-6 text-zinc-600">
+            {t.description}
+          </p>
+        </div>
+
+        <div className="px-1 pb-1">
+          <div className="mx-auto grid max-w-[22rem] grid-cols-3 gap-2 sm:flex sm:max-w-none sm:flex-wrap sm:justify-center">
+            {filterOptions.map((option) => {
+              const active = option.id === activeFilter;
+              const palette = lobbyFilterStyles[option.id];
+
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setActiveFilter(option.id)}
+                  className={cn(
+                    "inline-flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-1.5 text-xs font-medium transition sm:px-3.5 sm:py-2 sm:text-sm",
+                    active ? palette.active : palette.idle,
+                  )}
+                >
+                  <span className="truncate">{option.label}</span>
+                  {typeof option.count === "number" ? (
+                    <span
+                      className={cn(
+                        "rounded-full px-1.5 py-0.5 text-[10px] font-semibold sm:px-2 sm:text-xs",
+                        active ? palette.badge : palette.idleBadge,
+                      )}
+                    >
+                      {option.count}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {!hasActivities ? (
+        <section className="overflow-hidden rounded-[1.75rem] border border-[#dfceb0] bg-[linear-gradient(145deg,rgba(255,252,247,0.98),rgba(246,237,222,0.94))] p-5 shadow-[0_12px_30px_rgba(94,80,52,0.06)] sm:p-6">
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 className="text-2xl font-semibold text-ink sm:text-3xl">
+              {t.emptyTitle}
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-zinc-600 sm:text-base">
+              {t.emptyDescription}
+            </p>
+          </div>
+
+          <div className="mt-6 grid gap-4 lg:grid-cols-3">
+            {normalizedEmptyLobbyActions.map((action) => (
+              <div
+                key={action.href}
+                className={cn(
+                  "rounded-[1.5rem] border p-5 text-left shadow-sm shadow-black/5",
+                  action.tone === "primary"
+                    ? "border-[#d8c39f] bg-[linear-gradient(145deg,rgba(242,229,206,0.98),rgba(230,213,185,0.95))]"
+                    : action.tone === "secondary"
+                      ? "border-[#d7c2b8] bg-[linear-gradient(145deg,rgba(246,233,228,0.96),rgba(239,223,216,0.94))]"
+                      : "border-[#dfd6c7] bg-[rgba(255,252,246,0.9)]",
+                )}
+              >
+                <p className="text-lg font-semibold text-ink">
+                  {action.label}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-zinc-600">
+                  {action.description}
+                </p>
+                <Link
+                  href={withLocale(locale, action.href)}
+                  className={cn(
+                    "mt-4 inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold transition",
+                    action.tone === "primary"
+                      ? "bg-[#d39a78] text-white hover:bg-[#c88d69]"
+                      : action.tone === "secondary"
+                        ? "bg-white/85 text-[#8c5f4b] hover:bg-white"
+                        : "bg-[#f6efe3] text-[#7b6b56] hover:bg-[#efe5d5]",
+                  )}
+                >
+                  {action.label}
+                </Link>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : !hasVisibleActivities ? (
+        <div className="rounded-[1.75rem] border border-dashed border-[#dccfb1] bg-[rgba(255,250,241,0.8)] px-5 py-8 text-center">
+          <p className="text-base font-semibold text-[#433a30]">
+            {emptyCategoryCopy.title}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-zinc-500">
+            {emptyCategoryCopy.description}
+          </p>
+        </div>
+      ) : null}
+
+      {visibleSections.map((section) => (
+        <ActivityLobbySection
+          key={section.title}
+          activities={section.activities}
+          description={section.description}
+          emptyDescription={section.emptyDescription}
+          id={section.id}
+          locale={locale}
+          title={section.title}
+        />
+      ))}
+    </div>
+  );
+}

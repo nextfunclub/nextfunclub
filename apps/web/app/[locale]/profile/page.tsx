@@ -1,6 +1,10 @@
-import { ensureCurrentUserProfile } from "@/lib/auth";
 import { PageContainer } from "@/components/layout/PageContainer";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { ProfileDashboardView } from "@/features/profile/components/ProfileDashboardView";
+import { ensureCurrentUserProfile } from "@/lib/auth";
+import {
+  getProfileDashboard,
+  type ProfileDashboardViewModel,
+} from "@/features/profile/queries/getProfileDashboard";
 
 type ProfilePageProps = {
   params: Promise<{
@@ -8,23 +12,52 @@ type ProfilePageProps = {
   }>;
 };
 
+export const dynamic = "force-dynamic";
+
+function getEmptyProfileDashboard(): ProfileDashboardViewModel {
+  return {
+    createdActivityCount: 0,
+    participationCount: 0,
+    favoriteActivityCount: 0,
+    followersCount: 0,
+    followingCount: 0,
+    createdActivities: [],
+    participations: [],
+    favoriteActivities: [],
+    followers: [],
+    following: [],
+  };
+}
+
 export default async function ProfilePage({ params }: ProfilePageProps) {
   const { locale } = await params;
   const profile = await ensureCurrentUserProfile(locale);
+  const dashboardResult = await getProfileDashboard(profile.id)
+    .then((dashboard) => ({ dashboard, error: null }))
+    .catch((error: unknown) => {
+      console.error("Failed to load profile dashboard", error);
+
+      return {
+        dashboard: getEmptyProfileDashboard(),
+        error,
+      };
+    });
 
   return (
-    <PageContainer className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-normal text-ink">个人空间</h1>
-        <p className="mt-2 text-sm text-zinc-600">
-          {profile.nickname}，这里会管理你发起和参与的活动。
-        </p>
-      </div>
-
-      <section className="grid gap-4 md:grid-cols-2">
-        <EmptyState title="我发起的活动" description="创建活动功能接入后，这里会展示你发布的活动。" />
-        <EmptyState title="我参与的活动" description="报名功能接入后，这里会展示你的报名记录。" />
-      </section>
+    <PageContainer>
+      <ProfileDashboardView
+        dashboard={dashboardResult.dashboard}
+        hasDashboardError={Boolean(dashboardResult.error)}
+        isSelf
+        locale={locale}
+        profile={{
+          id: profile.id,
+          nickname: profile.nickname,
+          friendCode: profile.friendCode,
+          avatarUrl: profile.avatarUrl,
+          bio: profile.bio,
+        }}
+      />
     </PageContainer>
   );
 }

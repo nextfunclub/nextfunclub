@@ -1,5 +1,14 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalEnv": [
+    "DATABASE_URL",
+    "DIRECT_URL",
+    "CLERK_SECRET_KEY",
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_STORAGE_BUCKET"
+  ],
+  "globalDependencies": ["apps/web/prisma/schema.prisma"],
   "tasks": {
     "dev": {
       "cache": false,
@@ -14,6 +23,10 @@
     },
     "typecheck": {
       "dependsOn": ["^typecheck"]
+    },
+    "test": {
+      "dependsOn": ["^test"],
+      "cache": false
     }
   }
 }

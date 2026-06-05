@@ -1,4 +1,6 @@
 export const activityTypes = {
+  PUBLIC_EVENT: "活动信息",
+  USER_HOSTED: "用户发起",
   LOCAL: "本地局",
   TRIP: "旅游搭子"
 } as const;
@@ -11,12 +13,15 @@ export const activityCategories = {
   TRAVEL: "旅行",
   FOOD: "饭局",
   EXHIBITION: "展览",
+  THEATER: "戏剧",
   OTHER: "其他"
 } as const;
 
 export const activityStatuses = {
+  OPEN: "可参与",
+  FULL: "已满员",
   DRAFT: "草稿",
-  RECRUITING: "招募中",
+  RECRUITING: "可参与",
   CONFIRMED: "已成团",
   ENDED: "已结束",
   CANCELLED: "已取消"
