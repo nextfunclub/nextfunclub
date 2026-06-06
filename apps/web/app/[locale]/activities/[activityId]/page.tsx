@@ -26,7 +26,7 @@ import { AnalyticsLink } from "@/features/analytics/components/AnalyticsLink";
 import { ActivityAnalyticsSummaryPanel } from "@/features/analytics/components/ActivityAnalyticsSummaryPanel";
 import { normalizeAnalyticsLocale } from "@/features/analytics/events";
 import { getActivityAnalyticsSummary } from "@/features/analytics/queries/getActivityAnalyticsSummary";
-import { trackAnalyticsEvent } from "@/features/analytics/server";
+import { queueAnalyticsEvent } from "@/features/analytics/server";
 import {
   getAnalyticsEntityForActivityDetail,
   inferAnalyticsSourceSurfaceFromReferrer,
@@ -66,6 +66,7 @@ import { getPublicEventCopy } from "@/features/public-events/copy";
 import { ReportDialog } from "@/features/reports/components/ReportDialog";
 import { getOptionalCurrentUserProfile } from "@/lib/auth";
 import { getCategoryLabel, getCopy, getTypeLabel } from "@/lib/copy";
+import { createPerformanceTracker } from "@/lib/performance";
 import { withLocale } from "@/lib/routes";
 
 type ActivityDetailPageProps = {
@@ -81,14 +82,17 @@ export default async function ActivityDetailPage({
   params,
 }: ActivityDetailPageProps) {
   const { locale, activityId } = await params;
+  const perf = createPerformanceTracker({
+    locale,
+    route: "/activities/[activityId]",
+  });
   const t = getCopy(locale);
   const analyticsLocale = normalizeAnalyticsLocale(locale);
   const publicEventCopy = getPublicEventCopy(locale);
   const followLabels = getFollowCopy(locale);
-  const [activity, viewerProfile] = await Promise.all([
-    getActivityById(activityId),
-    getOptionalCurrentUserProfile(),
-  ]);
+  const [activity, viewerProfile] = await perf.measure("activity.primary", () =>
+    Promise.all([getActivityById(activityId), getOptionalCurrentUserProfile()]),
+  );
 
   if (!activity) {
     notFound();
@@ -102,7 +106,7 @@ export default async function ActivityDetailPage({
     "activity_list",
   );
 
-  await trackAnalyticsEvent(
+  queueAnalyticsEvent(
     {
       locale: analyticsLocale,
       name: activity.isActivityInfo
@@ -141,13 +145,17 @@ export default async function ActivityDetailPage({
     const unavailableDescription = isEndedByTime
       ? publicEventCopy.teamSectionEndedDescription
       : publicEventCopy.teamSectionUnavailableDescription;
+    perf.finish({
+      itemKind: "public_event",
+      hasViewer: Boolean(viewerProfile),
+    });
 
     return (
       <PageContainer className="space-y-6">
-        <div className="relative flex min-h-52 items-end overflow-hidden rounded-lg bg-moss p-4 sm:p-5 md:min-h-72">
+        <div className="relative flex min-h-52 items-end overflow-hidden rounded-[1.25rem] bg-moss p-4 shadow-[0_16px_36px_rgba(58,49,34,0.12)] sm:p-5 md:min-h-72">
           <ActivityCoverImage
             src={activity.coverImageUrl}
-            overlayClassName="bg-black/35"
+            overlayClassName="bg-gradient-to-t from-black/76 via-black/34 to-black/12"
           />
           <div className="absolute right-4 top-4 z-30 sm:right-5 sm:top-5">
             <ReportDialog
@@ -159,16 +167,17 @@ export default async function ActivityDetailPage({
               variant="icon"
             />
           </div>
-          <div className="relative max-w-3xl space-y-3">
+          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/62 to-transparent" />
+          <div className="relative max-w-3xl space-y-3 rounded-[1.15rem] bg-black/26 p-3 ring-1 ring-white/10 backdrop-blur-sm sm:p-4">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-md bg-white/90 px-2.5 py-1 text-xs font-semibold text-ink">
+              <span className="rounded-md bg-white/95 px-2.5 py-1 text-xs font-semibold text-ink shadow-sm">
                 {activityCategoryLabel}
               </span>
-              <span className="rounded-md bg-white/80 px-2.5 py-1 text-xs font-medium text-zinc-700">
+              <span className="rounded-md bg-white/85 px-2.5 py-1 text-xs font-medium text-zinc-700 shadow-sm">
                 {publicEventCopy.detailSource}
               </span>
             </div>
-            <h1 className="text-3xl font-semibold tracking-normal text-white sm:text-4xl md:text-5xl">
+            <h1 className="text-3xl font-semibold leading-tight tracking-normal text-white [text-shadow:0_2px_18px_rgba(0,0,0,0.45)] sm:text-4xl md:text-5xl">
               {activity.title}
             </h1>
           </div>
@@ -398,13 +407,15 @@ export default async function ActivityDetailPage({
     isFavorited,
     comments,
     friendSignal,
-  ] = await Promise.all([
-    getActivityViewerParticipation(activity.id, viewerProfile?.id),
-    getViewerFollowState(viewerProfile?.id, activity.organizer.id),
-    getViewerActivityFavorite(activity.id, viewerProfile?.id),
-    getActivityComments(activity.id),
-    getActivityFriendSignal(activity.id, viewerProfile?.id),
-  ]);
+  ] = await perf.measure("activity.viewerData", () =>
+    Promise.all([
+      getActivityViewerParticipation(activity.id, viewerProfile?.id),
+      getViewerFollowState(viewerProfile?.id, activity.organizer.id),
+      getViewerActivityFavorite(activity.id, viewerProfile?.id),
+      getActivityComments(activity.id),
+      getActivityFriendSignal(activity.id, viewerProfile?.id),
+    ]),
+  );
   const participantPercent = getActivityParticipantPercent(activity);
   const displayStatus = getActivityDisplayStatus(activity);
   const itineraryItems = getActivityItineraryItems(activity);
@@ -413,29 +424,44 @@ export default async function ActivityDetailPage({
   const isClosed =
     !["RECRUITING", "CONFIRMED"].includes(activity.status) || isEndedByTime;
   const isCancelled = activity.status === "CANCELLED";
-  const isFull = activity.participantCount >= activity.capacity;
+  const isFull =
+    activity.capacity > 0 && activity.participantCount >= activity.capacity;
   const isOrganizer = viewerProfile?.id === activity.organizer.id;
   const canContactOrganizer = !isOrganizer;
   const canEditActivity = isOrganizer && !isCancelled && !isEndedByTime;
   const activityCategoryLabel = getCategoryLabel(activity.category, locale);
   const activityDateLabel = getActivityDateLabel(activity, locale);
   const activityLocationLabel = getActivityLocationLabel(activity);
-  const activityParticipantLabel = `${activity.participantCount}/${activity.capacity} ${t.common.people}`;
+  const activityParticipantLabel =
+    activity.capacity > 0
+      ? `${activity.participantCount}/${activity.capacity} ${t.common.people}`
+      : `${activity.participantCount} ${t.common.people}`;
   const activityPriceLabel = getActivityPriceLabel(activity, locale);
-  const pendingParticipants =
-    isOrganizer && activity.requiresApproval && viewerProfile
-      ? await getPendingParticipants(activity.id, viewerProfile.id)
-      : [];
-  const analyticsSummary = isOrganizer
-    ? await getActivityAnalyticsSummary(activity.id)
-    : null;
+  const [pendingParticipants, analyticsSummary] = await perf.measure(
+    "activity.organizerData",
+    () =>
+      Promise.all([
+        isOrganizer && activity.requiresApproval && viewerProfile
+          ? getPendingParticipants(activity.id, viewerProfile.id)
+          : Promise.resolve([]),
+        isOrganizer
+          ? getActivityAnalyticsSummary(activity.id)
+          : Promise.resolve(null),
+      ]),
+  );
+  perf.finish({
+    commentCount: comments.length,
+    hasViewer: Boolean(viewerProfile),
+    isOrganizer,
+    itemKind: "team",
+  });
 
   return (
     <PageContainer className="space-y-6">
-      <div className="relative flex min-h-52 items-end overflow-hidden rounded-lg bg-moss p-4 sm:p-5 md:min-h-72">
+      <div className="relative flex min-h-52 items-end overflow-hidden rounded-[1.25rem] bg-moss p-4 shadow-[0_16px_36px_rgba(58,49,34,0.12)] sm:p-5 md:min-h-72">
         <ActivityCoverImage
           src={activity.coverImageUrl}
-          overlayClassName="bg-black/35"
+          overlayClassName="bg-gradient-to-t from-black/76 via-black/34 to-black/12"
         />
         <div className="absolute right-4 top-4 z-30 flex items-center gap-2 sm:right-5 sm:top-5">
           <ActivityFavoriteButton
@@ -454,14 +480,15 @@ export default async function ActivityDetailPage({
             variant="icon"
           />
         </div>
-        <div className="relative max-w-3xl space-y-3">
+        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/62 to-transparent" />
+        <div className="relative max-w-3xl space-y-3 rounded-[1.15rem] bg-black/26 p-3 ring-1 ring-white/10 backdrop-blur-sm sm:p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-md bg-white/90 px-2.5 py-1 text-xs font-semibold text-ink">
+            <span className="rounded-md bg-white/95 px-2.5 py-1 text-xs font-semibold text-ink shadow-sm">
               {activityCategoryLabel}
             </span>
             <ActivityStatusBadge status={displayStatus} locale={locale} />
           </div>
-          <h1 className="text-3xl font-semibold tracking-normal text-white sm:text-4xl md:text-5xl">
+          <h1 className="text-3xl font-semibold leading-tight tracking-normal text-white [text-shadow:0_2px_18px_rgba(0,0,0,0.45)] sm:text-4xl md:text-5xl">
             {activity.title}
           </h1>
         </div>
@@ -734,12 +761,14 @@ export default async function ActivityDetailPage({
                   {getActivitySeatLabel(activity, locale)}
                 </span>
               </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100">
-                <div
-                  className="h-full rounded-full bg-moss"
-                  style={{ width: `${participantPercent}%` }}
-                />
-              </div>
+              {activity.capacity > 0 ? (
+                <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100">
+                  <div
+                    className="h-full rounded-full bg-moss"
+                    style={{ width: `${participantPercent}%` }}
+                  />
+                </div>
+              ) : null}
             </div>
             <ActivityFriendSignalPanel locale={locale} signal={friendSignal} />
             <p className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2">

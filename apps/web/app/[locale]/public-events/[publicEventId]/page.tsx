@@ -17,12 +17,13 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { AnalyticsExternalLink } from "@/features/analytics/components/AnalyticsExternalLink";
 import { AnalyticsLink } from "@/features/analytics/components/AnalyticsLink";
 import { normalizeAnalyticsLocale } from "@/features/analytics/events";
-import { trackAnalyticsEvent } from "@/features/analytics/server";
+import { queueAnalyticsEvent } from "@/features/analytics/server";
 import { inferAnalyticsSourceSurfaceFromReferrer } from "@/features/analytics/utils";
 import { ActivityCard } from "@/features/activities/components/ActivityCard";
 import { ActivityMapPreview } from "@/features/activities/components/ActivityMapPreview";
 import { getCategoryLabel } from "@/lib/copy";
 import { getOptionalCurrentUserProfile } from "@/lib/auth";
+import { createPerformanceTracker } from "@/lib/performance";
 import { withLocale } from "@/lib/routes";
 import { getPublicEventCopy } from "@/features/public-events/copy";
 import { ReportDialog } from "@/features/reports/components/ReportDialog";
@@ -47,12 +48,17 @@ export default async function PublicEventDetailPage({
   params,
 }: PublicEventDetailPageProps) {
   const { locale, publicEventId } = await params;
+  const perf = createPerformanceTracker({
+    locale,
+    route: "/public-events/[publicEventId]",
+  });
   const t = getPublicEventCopy(locale);
   const analyticsLocale = normalizeAnalyticsLocale(locale);
-  const viewerProfile = await getOptionalCurrentUserProfile();
-  const publicEvent = await getPublicEventById(
-    publicEventId,
-    viewerProfile?.id,
+  const viewerProfile = await perf.measure("viewer.profile", () =>
+    getOptionalCurrentUserProfile(),
+  );
+  const publicEvent = await perf.measure("publicEvent.detail", () =>
+    getPublicEventById(publicEventId, viewerProfile?.id),
   );
 
   if (!publicEvent) {
@@ -66,7 +72,7 @@ export default async function PublicEventDetailPage({
     "activity_list",
   );
 
-  await trackAnalyticsEvent(
+  queueAnalyticsEvent(
     {
       locale: analyticsLocale,
       name: "public_event_detail_viewed",
@@ -99,6 +105,10 @@ export default async function PublicEventDetailPage({
     : isEnded
       ? t.teamSectionEndedDescription
       : t.teamSectionDescription;
+  perf.finish({
+    hasViewer: Boolean(viewerProfile),
+    teamCount: publicEvent.teamCount,
+  });
 
   return (
     <PageContainer className="space-y-5 py-4 sm:space-y-6 sm:py-8">
@@ -110,10 +120,10 @@ export default async function PublicEventDetailPage({
         {t.backToPublicEvents}
       </Link>
 
-      <div className="relative flex min-h-64 items-end overflow-hidden rounded-[1.5rem] bg-[#d9e9ee] p-4 shadow-[0_14px_30px_rgba(58,49,34,0.12)] sm:p-6 md:min-h-[26rem]">
+      <div className="relative flex min-h-64 items-end overflow-hidden rounded-[1.5rem] bg-[#d9e9ee] p-4 shadow-[0_18px_42px_rgba(58,49,34,0.14)] sm:p-6 md:min-h-[26rem]">
         <ActivityCoverImage
           src={publicEvent.coverImageUrl}
-          overlayClassName="bg-gradient-to-t from-black/64 via-black/22 to-black/8"
+          overlayClassName="bg-gradient-to-t from-black/78 via-black/36 to-black/12"
         />
         <div className="absolute right-4 top-4 z-30 flex items-center gap-2 sm:right-6 sm:top-6">
           <PublicEventFavoriteButton
@@ -132,7 +142,8 @@ export default async function PublicEventDetailPage({
             variant="icon"
           />
         </div>
-        <div className="relative max-w-4xl space-y-4">
+        <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/65 to-transparent" />
+        <div className="relative max-w-4xl space-y-4 rounded-[1.25rem] bg-black/28 p-3 ring-1 ring-white/10 backdrop-blur-sm sm:p-4">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-ink shadow-sm">
               {getCategoryLabel(publicEvent.category, locale)}
@@ -146,7 +157,7 @@ export default async function PublicEventDetailPage({
               </span>
             ) : null}
           </div>
-          <h1 className="text-3xl font-semibold tracking-normal text-white sm:text-4xl md:text-5xl">
+          <h1 className="text-3xl font-semibold leading-tight tracking-normal text-white [text-shadow:0_2px_18px_rgba(0,0,0,0.48)] sm:text-4xl md:text-5xl">
             {publicEvent.title}
           </h1>
           <div className="grid gap-2 text-sm text-white/92 sm:grid-cols-3">

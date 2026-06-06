@@ -155,6 +155,7 @@ export async function reviewParticipationAction(
 
         if (
           result.data.decision === "approve" &&
+          participation.activity.capacity > 0 &&
           participation.activity._count.participants >=
             participation.activity.capacity
         ) {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ReactNode, SelectHTMLAttributes } from "react";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { LoaderCircle } from "lucide-react";
 import {
   Button,
   Card,
@@ -171,19 +172,50 @@ function SubmitButton({
   return (
     <Button
       type="submit"
-      className="w-full sm:w-auto"
+      className="w-full gap-2 sm:w-auto"
       disabled={pending || disabled}
+      aria-busy={pending || disabled}
     >
-      {disabled && !pending
-        ? t.coverUploading
-        : pending
-          ? mode === "edit"
-            ? t.saving
-            : t.creating
-          : mode === "edit"
-            ? t.save
-            : t.create}
+      {pending || disabled ? (
+        <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+      ) : null}
+      <span className="truncate">
+        {disabled && !pending
+          ? t.coverUploading
+          : pending
+            ? mode === "edit"
+              ? t.saving
+              : t.creating
+            : mode === "edit"
+              ? t.save
+              : t.create}
+      </span>
     </Button>
+  );
+}
+
+function PendingFormNotice({
+  locale,
+  mode,
+}: {
+  locale: string;
+  mode: "create" | "edit";
+}) {
+  const { pending } = useFormStatus();
+  const t = getCopy(locale).form;
+
+  if (!pending) {
+    return null;
+  }
+
+  return (
+    <div
+      className="flex items-center gap-2 rounded-md border border-moss/20 bg-moss/10 px-3 py-2 text-xs font-medium text-moss"
+      aria-live="polite"
+    >
+      <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+      <span>{mode === "edit" ? t.saving : t.creating}</span>
+    </div>
   );
 }
 
@@ -201,16 +233,19 @@ function FormActions({
   const t = getCopy(locale).form;
 
   return (
-    <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-      {mode === "edit" && cancelHref ? (
-        <Link
-          className="inline-flex h-10 w-full items-center justify-center whitespace-nowrap rounded-md bg-white px-4 text-sm font-medium text-zinc-950 ring-1 ring-zinc-200 transition hover:bg-zinc-50 sm:w-auto"
-          href={cancelHref}
-        >
-          {t.cancelEdit}
-        </Link>
-      ) : null}
-      <SubmitButton disabled={isCoverUploading} locale={locale} mode={mode} />
+    <div className="grid gap-3">
+      <PendingFormNotice locale={locale} mode={mode} />
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        {mode === "edit" && cancelHref ? (
+          <Link
+            className="inline-flex h-10 w-full items-center justify-center whitespace-nowrap rounded-md bg-white px-4 text-sm font-medium text-zinc-950 ring-1 ring-zinc-200 transition hover:bg-zinc-50 sm:w-auto"
+            href={cancelHref}
+          >
+            {t.cancelEdit}
+          </Link>
+        ) : null}
+        <SubmitButton disabled={isCoverUploading} locale={locale} mode={mode} />
+      </div>
     </div>
   );
 }
@@ -239,6 +274,9 @@ export function NewActivityForm({
     ? getPublicEventTeamFormCopy(locale)
     : null;
   const isPublicEventTeam = Boolean(publicEventTeamFormCopy);
+  const [isCapacityLimited, setIsCapacityLimited] = useState(
+    values?.capacityLimitEnabled ?? Number(values?.capacity ?? 0) > 0,
+  );
 
   function applyImportedValues(nextValues: Partial<ActivityFormValues>) {
     setImportedValues((currentValues) => ({
@@ -532,36 +570,66 @@ export function NewActivityForm({
           <FormSection
             title={publicEventTeamFormCopy?.peoplePrice ?? t.form.peoplePrice}
           >
-            <div className="grid gap-5 sm:grid-cols-2">
-              <label className="grid gap-2 text-sm font-medium text-zinc-700">
-                {publicEventTeamFormCopy?.capacity ?? t.form.capacity}
-                <Input
-                  name="capacity"
-                  aria-invalid={Boolean(state.fieldErrors?.capacity)}
-                  type="number"
-                  min={2}
-                  max={100}
-                  defaultValue={values?.capacity ?? "99"}
-                  required
-                />
-                <FieldError errors={state.fieldErrors?.capacity} />
-              </label>
+            <label className="flex items-start gap-3 rounded-md border border-zinc-200 bg-white p-3 text-sm text-zinc-700">
+              <input
+                checked={isCapacityLimited}
+                className="mt-1"
+                name="capacityLimitEnabled"
+                onChange={(event) =>
+                  setIsCapacityLimited(event.target.checked)
+                }
+                type="checkbox"
+              />
+              <span>
+                <span className="font-medium text-ink">
+                  {t.form.capacityLimitToggle}
+                </span>
+                <span className="mt-1 block text-zinc-500">
+                  {t.form.capacityLimitHint}
+                </span>
+              </span>
+            </label>
 
-              <label className="grid gap-2 text-sm font-medium text-zinc-700">
-                {publicEventTeamFormCopy?.minParticipants ??
-                  t.form.minParticipants}
-                <Input
-                  name="minParticipants"
-                  aria-invalid={Boolean(state.fieldErrors?.minParticipants)}
-                  type="number"
-                  min={1}
-                  max={100}
-                  defaultValue={values?.minParticipants}
-                  placeholder={t.form.minParticipantsPlaceholder}
-                />
-                <FieldError errors={state.fieldErrors?.minParticipants} />
-              </label>
-            </div>
+            {isCapacityLimited ? (
+              <div className="grid gap-5 sm:grid-cols-2">
+                <label className="grid gap-2 text-sm font-medium text-zinc-700">
+                  {publicEventTeamFormCopy?.capacity ?? t.form.capacity}
+                  <Input
+                    name="capacity"
+                    aria-invalid={Boolean(state.fieldErrors?.capacity)}
+                    type="number"
+                    min={2}
+                    max={100}
+                    defaultValue={
+                      Number(values?.capacity ?? 0) > 0 ? values?.capacity : ""
+                    }
+                    placeholder={t.form.capacityPlaceholder}
+                    required
+                  />
+                  <FieldError errors={state.fieldErrors?.capacity} />
+                </label>
+
+                <label className="grid gap-2 text-sm font-medium text-zinc-700">
+                  {publicEventTeamFormCopy?.minParticipants ??
+                    t.form.minParticipants}
+                  <Input
+                    name="minParticipants"
+                    aria-invalid={Boolean(state.fieldErrors?.minParticipants)}
+                    type="number"
+                    min={1}
+                    max={100}
+                    defaultValue={values?.minParticipants}
+                    placeholder={t.form.minParticipantsPlaceholder}
+                  />
+                  <FieldError errors={state.fieldErrors?.minParticipants} />
+                </label>
+              </div>
+            ) : (
+              <>
+                <input name="capacity" type="hidden" value="0" />
+                <input name="minParticipants" type="hidden" value="" />
+              </>
+            )}
 
             <div className="grid gap-5 sm:grid-cols-2">
               <label className="grid gap-2 text-sm font-medium text-zinc-700">

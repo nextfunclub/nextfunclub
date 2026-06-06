@@ -10,5 +10,5 @@ type RootPageProps = {
 export default async function RootPage({ params }: RootPageProps) {
   const { locale } = await params;
 
-  redirect(withLocale(locale, "/lobby"));
+  redirect(withLocale(locale, "/home"));
 }
