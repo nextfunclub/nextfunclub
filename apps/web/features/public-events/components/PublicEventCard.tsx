@@ -96,12 +96,12 @@ export function PublicEventCard({
           />
           <div className="absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-black/8 to-transparent" />
           <div className="relative mt-auto flex min-w-0 flex-wrap items-center gap-1.5">
-              <span className="rounded-md bg-[rgba(22,18,14,0.76)] px-2.5 py-1 text-[11px] font-semibold leading-none text-[#fffaf2] shadow-[0_8px_18px_rgba(0,0,0,0.24)] ring-1 ring-white/10">
-                {getCategoryLabel(event.category, locale)}
-              </span>
-              <span className="rounded-md bg-[rgba(255,250,242,0.94)] px-2.5 py-1 text-[11px] font-medium leading-none text-zinc-900 shadow-[0_8px_18px_rgba(0,0,0,0.18)]">
-                {t.detailSource}
-              </span>
+            <span className="rounded-md bg-[rgba(22,18,14,0.76)] px-2.5 py-1 text-[11px] font-semibold leading-none text-[#fffaf2] shadow-[0_8px_18px_rgba(0,0,0,0.24)] ring-1 ring-white/10">
+              {getCategoryLabel(event.category, locale)}
+            </span>
+            <span className="rounded-md bg-[rgba(255,250,242,0.94)] px-2.5 py-1 text-[11px] font-medium leading-none text-zinc-900 shadow-[0_8px_18px_rgba(0,0,0,0.18)]">
+              {t.detailSource}
+            </span>
           </div>
         </div>
         <CardHeader className="p-4 pb-2 sm:p-5 sm:pb-2">

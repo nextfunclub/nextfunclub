@@ -269,17 +269,17 @@ export function ActivityCard({
           <div className="absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-black/10 to-transparent" />
           <div className="relative mt-auto flex w-full items-end justify-between gap-2">
             <div className="flex min-w-0 flex-wrap gap-1.5">
-                <span className="rounded-md bg-[rgba(22,18,14,0.76)] px-2.5 py-1 text-[11px] font-semibold leading-none text-[#fffaf2] shadow-[0_8px_18px_rgba(0,0,0,0.24)] ring-1 ring-white/10">
-                  {getCategoryLabel(activity.category, locale)}
-                </span>
+              <span className="rounded-md bg-[rgba(22,18,14,0.76)] px-2.5 py-1 text-[11px] font-semibold leading-none text-[#fffaf2] shadow-[0_8px_18px_rgba(0,0,0,0.24)] ring-1 ring-white/10">
+                {getCategoryLabel(activity.category, locale)}
+              </span>
+              <span className="rounded-md bg-[rgba(255,250,242,0.94)] px-2.5 py-1 text-[11px] font-medium leading-none text-zinc-900 shadow-[0_8px_18px_rgba(0,0,0,0.18)]">
+                {getCardKindLabel(isActivityInfo, locale)}
+              </span>
+              {!isActivityInfo ? (
                 <span className="rounded-md bg-[rgba(255,250,242,0.94)] px-2.5 py-1 text-[11px] font-medium leading-none text-zinc-900 shadow-[0_8px_18px_rgba(0,0,0,0.18)]">
-                  {getCardKindLabel(isActivityInfo, locale)}
+                  {getCardVisibilityLabel(activity.visibility, locale)}
                 </span>
-                {!isActivityInfo ? (
-                  <span className="rounded-md bg-[rgba(255,250,242,0.94)] px-2.5 py-1 text-[11px] font-medium leading-none text-zinc-900 shadow-[0_8px_18px_rgba(0,0,0,0.18)]">
-                    {getCardVisibilityLabel(activity.visibility, locale)}
-                  </span>
-                ) : null}
+              ) : null}
             </div>
             <div className="flex shrink-0 flex-col items-end gap-1.5">
               {!isActivityInfo ? (
