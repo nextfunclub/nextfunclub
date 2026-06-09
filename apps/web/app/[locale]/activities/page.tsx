@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Badge } from "@chill-club/ui";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ActivityCard } from "@/features/activities/components/ActivityCard";
@@ -266,21 +265,10 @@ export default async function ActivitiesPage({
     <PageContainer className="space-y-4 py-5 sm:space-y-6 sm:py-8">
       <div className="space-y-4">
         <ActivityModeTabs current="activities" locale={locale} />
-        <div className="overflow-hidden rounded-[2rem] border border-[#ded2bc] bg-[radial-gradient(circle_at_top_right,_rgba(130,152,173,0.12),_transparent_34%),radial-gradient(circle_at_top_left,_rgba(212,183,126,0.18),_transparent_32%),linear-gradient(135deg,rgba(255,250,244,0.98),rgba(244,236,221,0.95))] px-5 py-7 text-center shadow-[0_12px_28px_rgba(99,78,48,0.06)] sm:px-8 sm:py-9">
-          <div className="mx-auto max-w-3xl">
-            <h1 className="text-3xl font-semibold tracking-normal text-ink sm:text-4xl">
-              {t.activities.title}
-            </h1>
-            <p className="mt-3 text-base leading-7 text-zinc-600 sm:text-lg">
-              {t.activities.description}
-            </p>
-          </div>
-          <div className="mt-5 hidden flex-wrap justify-center gap-2 sm:flex">
-            <Badge>{t.globalSearch.publicEventsTitle}</Badge>
-            <Badge>{t.activityLabels.timeStates.ONGOING}</Badge>
-            <Badge>{t.activityLabels.timeStates.UPCOMING}</Badge>
-            <Badge>{t.activityLabels.timeStates.ENDED}</Badge>
-          </div>
+        <div className="flex flex-col items-center gap-2 px-1 pt-1 text-center sm:gap-3">
+          <p className="max-w-[42rem] text-base font-medium leading-7 text-ink [text-wrap:balance] sm:text-[1.05rem] sm:leading-8">
+            {t.activities.description}
+          </p>
         </div>
       </div>
 
