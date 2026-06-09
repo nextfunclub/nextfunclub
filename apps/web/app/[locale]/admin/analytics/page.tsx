@@ -237,7 +237,7 @@ function getCopy(locale: string) {
     activityRankActivity: "组队",
     activityRankEmpty: "有足够浏览和互动后，这里会显示热门内容。",
     activityRankPublicEvent: "活动",
-    activityRankTeam: "车队",
+    activityRankTeam: "组局",
     activityRankTitle: "热门活动排行",
     activityRankDescription:
       "按浏览和后续动作加权，帮助判断哪些内容值得继续运营。",

@@ -4,11 +4,12 @@ export function getPublicEventCopy(locale: string) {
       navLabel: "Découverte",
       listTitle: "Découverte d'activités",
       listDescription:
-        "Choisissez une activité, puis rejoignez un groupe existant ou créez le vôtre.",
-      listScope: "Une activité est une information. L'inscription se fait dans les groupes.",
-      publicEventGuideTitle: "Activité",
+        "Consultez l'info activité, puis rejoignez un groupe existant ou créez le vôtre.",
+      listScope:
+        "Ici, vous consultez l'info activité. L'inscription se fait dans les groupes.",
+      publicEventGuideTitle: "Info activité",
       publicEventGuideDescription:
-        "Une information importée ou officielle pour vérifier l'heure, le lieu et le lien source.",
+        "Une fiche importée ou officielle pour vérifier l'heure, le lieu et le lien source.",
       teamGuideTitle: "Groupe",
       teamGuideDescription:
         "Une sortie créée par un utilisateur autour de cette activité. C'est ici que l'on s'inscrit.",
@@ -17,7 +18,7 @@ export function getPublicEventCopy(locale: string) {
       loadFailedTitle: "Échec du chargement",
       loadFailedDescription:
         "Vérifiez la base de données ou réessayez plus tard.",
-      detailSource: "Activité",
+      detailSource: "Info activité",
       eventInfoTitle: "À propos de l'événement",
       officialPage: "Page officielle",
       viewEvent: "Voir l'événement",
@@ -80,11 +81,12 @@ export function getPublicEventCopy(locale: string) {
       navLabel: "Discover",
       listTitle: "Activity discovery",
       listDescription:
-        "Pick an activity, then join an existing crew or start your own.",
-      listScope: "An activity is an information card. Sign-ups happen in crews.",
-      publicEventGuideTitle: "Activity",
+        "Browse the activity details, then join an existing crew or start your own.",
+      listScope:
+        "This page shows activity info. Sign-ups happen in crews.",
+      publicEventGuideTitle: "Activity info",
       publicEventGuideDescription:
-        "Imported or official information for time, place, and source link.",
+        "Imported or official details so you can confirm the time, place, and source link.",
       teamGuideTitle: "Crew",
       teamGuideDescription:
         "A user-created plan around that activity. This is where sign-ups happen.",
@@ -93,7 +95,7 @@ export function getPublicEventCopy(locale: string) {
       loadFailedTitle: "Failed to load",
       loadFailedDescription:
         "Check the database connection or try again later.",
-      detailSource: "Activity",
+      detailSource: "Activity info",
       eventInfoTitle: "About this event",
       officialPage: "Official page",
       viewEvent: "View event",
@@ -151,8 +153,8 @@ export function getPublicEventCopy(locale: string) {
   return {
     navLabel: "活动发现",
     listTitle: "活动发现",
-    listDescription: "先选择活动，再加入已有车队或发起自己的组局。",
-    listScope: "活动只是信息位，报名和沟通发生在车队里。",
+    listDescription: "先查看活动信息，再加入已有组局或发起自己的组局。",
+    listScope: "这里展示的是活动信息，报名和沟通发生在组局里。",
     publicEventGuideTitle: "活动信息",
     publicEventGuideDescription:
       "来自官方、开放数据或爬虫的信息，用来确认时间、地点和来源链接。",

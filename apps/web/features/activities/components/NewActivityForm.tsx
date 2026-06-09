@@ -102,17 +102,17 @@ function getPublicEventTeamFormCopy(locale: string) {
   }
 
   return {
-    cardTitle: "车队信息",
+    cardTitle: "组局信息",
     activityContent: "这次怎么约",
-    title: "车队标题",
+    title: "组局标题",
     titlePlaceholder: "例如：下班后一起去看展",
     description: "给想加入的人看的说明",
     descriptionPlaceholder: "说明集合方式、同行氛围和需要提前知道的信息。",
     itinerary: "集合备注",
     itineraryPlaceholder: "例如：入口处集合，结束后附近喝咖啡。",
     timeLocation: "集合时间和地点",
-    peoplePrice: "车队人数和费用",
-    capacity: "车队人数上限",
+    peoplePrice: "组局人数和费用",
+    capacity: "组局人数上限",
     minParticipants: "最少同行人数",
     priceText: "费用说明",
   };

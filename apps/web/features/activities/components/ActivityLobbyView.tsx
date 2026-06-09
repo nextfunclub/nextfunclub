@@ -570,13 +570,13 @@ function getActivityLobbyPreviewCopy(locale: string) {
     eyebrow: "组队大厅",
     title: "先看看大家在组什么局",
     description:
-      "游客也可以浏览公开活动和正在组队的车队。想报名、收藏或查看好友动态时，再登录即可。",
+      "游客也可以浏览公开活动信息和正在组局的内容。想报名、收藏或查看好友动态时，再登录即可。",
     signIn: "登录进入个人大厅",
     browse: "继续发现活动",
     emptyTitle: "暂时还没有公开内容",
-    emptyDescription: "有新的活动或车队后，会先显示在这里。",
-    sectionTitle: "可浏览的活动和车队",
-    sectionDescription: "先看看有什么想去的，再选择报名、收藏或发起自己的车队。",
+    emptyDescription: "有新的活动信息或组局后，会先显示在这里。",
+    sectionTitle: "可浏览的活动和组局",
+    sectionDescription: "先看看有什么想去的，再选择报名、收藏或发起自己的组局。",
   };
 }
 
