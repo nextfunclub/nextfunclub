@@ -13,6 +13,7 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { ActivityCopyButton } from "@/features/activities/components/ActivityCopyButton";
 import { ActivityCoverImage } from "@/features/activities/components/ActivityCoverImage";
 import { GuestRegistrationForm } from "@/features/wechat-bridge/components/GuestRegistrationForm";
+import { recordActivityShareClick } from "@/features/wechat-bridge/queries/activityShare";
 import { getPublicRegistrationActivity } from "@/features/wechat-bridge/queries/getPublicRegistrationActivity";
 import { getCategoryLabel } from "@/lib/copy";
 import { withLocale } from "@/lib/routes";
@@ -125,17 +126,41 @@ export default async function PublicRegistrationPage({
     locale,
     startAt: activity.startAt,
   });
+  const sourceShareToken = resolvedSearchParams.inv?.trim() || undefined;
   const seatLabel = getSeatLabel(activity.attendeeCount, activity.capacity);
   const remainingSeatLabel = getRemainingSeatLabel(activity.remainingSeats);
   const requestHeaders = await headers();
+  if (sourceShareToken) {
+    await recordActivityShareClick({
+      activityId: activity.id,
+      referrer: requestHeaders.get("referer"),
+      shareToken: sourceShareToken,
+      userAgent: requestHeaders.get("user-agent"),
+    }).catch((error: unknown) => {
+      console.error("Failed to record activity share click", error);
+    });
+  }
+
   const host =
     requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
   const protocol = requestHeaders.get("x-forwarded-proto") ?? "https";
   const sharePath = withLocale(locale, `/e/${activity.id}`);
-  const shareUrl = host ? `${protocol}://${host}${sharePath}` : sharePath;
-  const qrCodePath = `/api/activities/${activity.id}/guest-registration-qr?locale=${encodeURIComponent(
+  const shareUrlSearchParams = sourceShareToken
+    ? `?inv=${encodeURIComponent(sourceShareToken)}`
+    : "";
+  const shareUrl = host
+    ? `${protocol}://${host}${sharePath}${shareUrlSearchParams}`
+    : `${sharePath}${shareUrlSearchParams}`;
+  const assetSearchParams = new URLSearchParams({
     locale,
-  )}`;
+  });
+
+  if (sourceShareToken) {
+    assetSearchParams.set("inv", sourceShareToken);
+  }
+
+  const qrCodePath = `/api/activities/${activity.id}/guest-registration-qr?${assetSearchParams.toString()}`;
+  const posterPath = `/api/activities/${activity.id}/guest-registration-poster?${assetSearchParams.toString()}`;
   const shareText = [
     activity.title,
     `时间：${dateLabel}`,
@@ -189,6 +214,11 @@ export default async function PublicRegistrationPage({
           <p className="mt-1 text-xs font-medium text-zinc-500">
             {remainingSeatLabel}
           </p>
+          {activity.waitlistAttendeeCount > 0 ? (
+            <p className="mt-1 text-xs font-medium text-[#9a7448]">
+              候补 {activity.waitlistAttendeeCount} 人
+            </p>
+          ) : null}
         </div>
       </section>
 
@@ -197,7 +227,12 @@ export default async function PublicRegistrationPage({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-xl font-semibold text-ink">已报名</h2>
-              <p className="mt-1 text-sm text-zinc-500">{seatLabel}</p>
+              <p className="mt-1 text-sm text-zinc-500">
+                {seatLabel}
+                {activity.waitlistAttendeeCount > 0
+                  ? ` · 候补 ${activity.waitlistAttendeeCount} 人`
+                  : ""}
+              </p>
             </div>
             {activity.participantPreview.length > 0 ? (
               <div className="flex -space-x-2">
@@ -257,7 +292,7 @@ export default async function PublicRegistrationPage({
               </div>
               <Share2 className="h-5 w-5 shrink-0 text-[#9a7448]" />
             </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
               <div className="flex min-w-0 items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm text-zinc-600 ring-1 ring-[#ead7b8]">
                 <span className="min-w-0 flex-1 truncate">{shareText}</span>
                 <ActivityCopyButton
@@ -275,6 +310,14 @@ export default async function PublicRegistrationPage({
               >
                 打开二维码
               </a>
+              <a
+                className="inline-flex h-10 items-center justify-center rounded-full bg-white px-4 text-sm font-semibold text-[#7e5f3a] ring-1 ring-[#ead7b8] transition hover:bg-[#fff8ec]"
+                href={posterPath}
+                rel="noreferrer"
+                target="_blank"
+              >
+                打开邀请海报
+              </a>
             </div>
           </div>
         </section>
@@ -291,7 +334,7 @@ export default async function PublicRegistrationPage({
               isFull={activity.isFull}
               locale={locale}
               remainingSeats={activity.remainingSeats}
-              shareToken={resolvedSearchParams.inv}
+              shareToken={sourceShareToken}
             />
           </div>
         </aside>

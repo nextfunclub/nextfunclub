@@ -1,9 +1,11 @@
 "use server";
 
-import { createHash } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import type { ParticipantStatus } from "@prisma/client";
+import type {
+  GuestRegistrationStatus,
+  ParticipantStatus,
+} from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -12,10 +14,15 @@ import {
   createPublicRegistrationToken,
   hashContactValue,
   hashPublicRegistrationToken,
+  hashRequestValue,
 } from "../utils/token";
 
 const guestCookieName = "nfc_guest_id";
 const activeParticipantStatuses: ParticipantStatus[] = ["JOINED", "APPROVED"];
+const nonCancelledGuestStatuses: GuestRegistrationStatus[] = [
+  "ACTIVE",
+  "WAITLIST",
+];
 
 const guestRegistrationSchema = z.object({
   activityId: z.string().min(1, "活动不存在"),
@@ -54,10 +61,6 @@ function getString(formData: FormData, key: string) {
   const value = formData.get(key);
 
   return typeof value === "string" ? value : "";
-}
-
-function hashUserAgent(value: string | null) {
-  return value ? createHash("sha256").update(value).digest("hex") : null;
 }
 
 function getFormValues(formData: FormData) {
@@ -103,7 +106,7 @@ export async function registerGuestForActivityAction(
   const cookieStore = await cookies();
   const requestHeaders = await headers();
   const existingGuestIdFromCookie = cookieStore.get(guestCookieName)?.value;
-  const browserFingerprintHash = hashUserAgent(
+  const browserFingerprintHash = hashRequestValue(
     requestHeaders.get("user-agent"),
   );
   const contactHash = hashContactValue(data.contact);
@@ -143,6 +146,21 @@ export async function registerGuestForActivityAction(
           throw new Error("ACTIVITY_CLOSED");
         }
 
+        const sourceShare = data.shareToken
+          ? await tx.activityShare.findUnique({
+              where: {
+                shareToken: data.shareToken,
+              },
+              select: {
+                activityId: true,
+                id: true,
+                shareToken: true,
+              },
+            })
+          : null;
+        const validSourceShare =
+          sourceShare?.activityId === activity.id ? sourceShare : null;
+
         const existingGuest = existingGuestIdFromCookie
           ? await tx.guestIdentity.findUnique({
               where: {
@@ -178,19 +196,19 @@ export async function registerGuestForActivityAction(
           guestAttendeeAggregate._sum.attendeeCount ?? 0;
         const totalAttendeeCount =
           activeParticipantCount + activeGuestAttendeeCount;
-
-        if (
+        const registrationStatus: GuestRegistrationStatus =
           activity.capacity > 0 &&
           totalAttendeeCount + data.attendeeCount > activity.capacity
-        ) {
-          throw new Error("ACTIVITY_FULL");
-        }
+            ? "WAITLIST"
+            : "ACTIVE";
 
         const duplicateRegistration =
           await tx.activityGuestRegistration.findFirst({
             where: {
               activityId: activity.id,
-              status: "ACTIVE",
+              status: {
+                in: nonCancelledGuestStatuses,
+              },
               OR: [
                 ...(existingGuest ? [{ guestId: existingGuest.id }] : []),
                 ...(contactHash ? [{ contactHash }] : []),
@@ -242,11 +260,13 @@ export async function registerGuestForActivityAction(
             contactHash,
             displayName: data.displayName,
             guestId: guest.id,
+            invitedByShareId: validSourceShare?.id ?? null,
             note: data.note || null,
             registrationTokenHash:
               hashPublicRegistrationToken(registrationToken),
-            shareToken: data.shareToken || null,
+            shareToken: validSourceShare?.shareToken ?? null,
             source: "wechat_h5",
+            status: registrationStatus,
           },
         });
       },
@@ -273,13 +293,6 @@ export async function registerGuestForActivityAction(
       if (error.message === "ACTIVITY_CLOSED") {
         return {
           formError: "活动已结束，不能继续报名。",
-          values: getFormValues(formData),
-        };
-      }
-
-      if (error.message === "ACTIVITY_FULL") {
-        return {
-          formError: "活动名额已满，不能继续报名。",
           values: getFormValues(formData),
         };
       }

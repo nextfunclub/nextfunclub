@@ -50,6 +50,7 @@ export type PublicRegistrationActivity = {
   startAt: string;
   status: string;
   title: string;
+  waitlistAttendeeCount: number;
 };
 
 type ActivityForPublicRegistration = NonNullable<
@@ -126,36 +127,47 @@ async function getPublicRegistrationActivityRaw(activityId: string) {
 }
 
 async function getGuestRegistrationStats(activityId: string) {
-  const [guestAttendeeAggregate, guestPreview] = await Promise.all([
-    prisma.activityGuestRegistration.aggregate({
-      where: {
-        activityId,
-        status: "ACTIVE",
-      },
-      _sum: {
-        attendeeCount: true,
-      },
-    }),
-    prisma.activityGuestRegistration.findMany({
-      where: {
-        activityId,
-        status: "ACTIVE",
-      },
-      orderBy: {
-        joinedAt: "asc",
-      },
-      take: participantPreviewLimit,
-      select: {
-        id: true,
-        displayName: true,
-        joinedAt: true,
-      },
-    }),
-  ]);
+  const [guestAttendeeAggregate, waitlistAttendeeAggregate, guestPreview] =
+    await Promise.all([
+      prisma.activityGuestRegistration.aggregate({
+        where: {
+          activityId,
+          status: "ACTIVE",
+        },
+        _sum: {
+          attendeeCount: true,
+        },
+      }),
+      prisma.activityGuestRegistration.aggregate({
+        where: {
+          activityId,
+          status: "WAITLIST",
+        },
+        _sum: {
+          attendeeCount: true,
+        },
+      }),
+      prisma.activityGuestRegistration.findMany({
+        where: {
+          activityId,
+          status: "ACTIVE",
+        },
+        orderBy: {
+          joinedAt: "asc",
+        },
+        take: participantPreviewLimit,
+        select: {
+          id: true,
+          displayName: true,
+          joinedAt: true,
+        },
+      }),
+    ]);
 
   return {
     attendeeCount: guestAttendeeAggregate._sum.attendeeCount ?? 0,
     preview: guestPreview,
+    waitlistAttendeeCount: waitlistAttendeeAggregate._sum.attendeeCount ?? 0,
   };
 }
 
@@ -217,6 +229,7 @@ function toPublicRegistrationActivity(
     startAt: activity.startAt.toISOString(),
     status: activity.status,
     title: activity.title,
+    waitlistAttendeeCount: guestStats.waitlistAttendeeCount,
   };
 }
 
@@ -246,6 +259,7 @@ export async function getPublicRegistrationReceipt(token: string) {
       joinedAt: true,
       note: true,
       status: true,
+      cancelledAt: true,
       activity: {
         select: {
           id: true,
@@ -275,6 +289,7 @@ export async function getPublicRegistrationReceipt(token: string) {
       endAt: registration.activity.endAt?.toISOString() ?? null,
       startAt: registration.activity.startAt.toISOString(),
     },
+    cancelledAt: registration.cancelledAt?.toISOString() ?? null,
     joinedAt: registration.joinedAt.toISOString(),
   };
 }
@@ -295,6 +310,38 @@ export async function getGuestRegistrationsForOrganizer({
       id: true,
       title: true,
       capacity: true,
+      shares: {
+        orderBy: {
+          createdAt: "asc",
+        },
+        select: {
+          id: true,
+          shareToken: true,
+          source: true,
+          inviterUser: {
+            select: {
+              nickname: true,
+            },
+          },
+          inviterGuestRegistration: {
+            select: {
+              displayName: true,
+            },
+          },
+          _count: {
+            select: {
+              clicks: true,
+              registrations: {
+                where: {
+                  status: {
+                    in: ["ACTIVE", "WAITLIST"],
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
       guestRegistrations: {
         orderBy: {
           joinedAt: "desc",
@@ -307,6 +354,22 @@ export async function getGuestRegistrationsForOrganizer({
           joinedAt: true,
           note: true,
           status: true,
+          invitedByShare: {
+            select: {
+              shareToken: true,
+              source: true,
+              inviterUser: {
+                select: {
+                  nickname: true,
+                },
+              },
+              inviterGuestRegistration: {
+                select: {
+                  displayName: true,
+                },
+              },
+            },
+          },
         },
       },
     },
