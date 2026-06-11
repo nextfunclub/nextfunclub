@@ -4,8 +4,16 @@ export function createPublicRegistrationToken() {
   return randomBytes(18).toString("base64url");
 }
 
+export function createActivityShareToken() {
+  return randomBytes(12).toString("base64url");
+}
+
 export function hashPublicRegistrationToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
+}
+
+export function hashRequestValue(value: string | null) {
+  return value ? createHash("sha256").update(value).digest("hex") : null;
 }
 
 export function hashContactValue(value: string) {

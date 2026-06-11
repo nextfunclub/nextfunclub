@@ -9,9 +9,45 @@ type GuestRegistrationsCsvRouteProps = {
 };
 
 function escapeCsv(value: string | number | null | undefined) {
-  const stringValue = value === null || value === undefined ? "" : String(value);
+  const stringValue =
+    value === null || value === undefined ? "" : String(value);
 
   return `"${stringValue.replaceAll('"', '""')}"`;
+}
+
+function getShareSourceLabel(
+  share: {
+    inviterGuestRegistration?: { displayName: string } | null;
+    inviterUser?: { nickname: string } | null;
+    shareToken: string;
+    source: string | null;
+  } | null,
+) {
+  if (!share) {
+    return "直接访问";
+  }
+
+  if (share.inviterUser) {
+    return `发起人：${share.inviterUser.nickname}`;
+  }
+
+  if (share.inviterGuestRegistration) {
+    return `参与者：${share.inviterGuestRegistration.displayName}`;
+  }
+
+  return share.source === "organizer" ? "发起人邀请" : share.shareToken;
+}
+
+function getGuestRegistrationStatusLabel(status: string) {
+  if (status === "WAITLIST") {
+    return "候补";
+  }
+
+  if (status === "CANCELLED") {
+    return "已取消";
+  }
+
+  return "有效";
 }
 
 export async function GET(
@@ -35,12 +71,23 @@ export async function GET(
   }
 
   const rows = [
-    ["昵称", "联系方式", "人数", "状态", "备注", "报名时间"],
+    [
+      "昵称",
+      "联系方式",
+      "人数",
+      "状态",
+      "邀请来源",
+      "邀请 token",
+      "备注",
+      "报名时间",
+    ],
     ...activity.guestRegistrations.map((registration) => [
       registration.displayName,
       registration.contactEncrypted ?? "",
       registration.attendeeCount,
-      registration.status === "ACTIVE" ? "有效" : "已取消",
+      getGuestRegistrationStatusLabel(registration.status),
+      getShareSourceLabel(registration.invitedByShare),
+      registration.invitedByShare?.shareToken ?? "",
       registration.note ?? "",
       registration.joinedAt,
     ]),

@@ -27,6 +27,34 @@ function formatDate(value: string, locale: string) {
   }).format(new Date(value));
 }
 
+function getShareSourceLabel(share: {
+  inviterGuestRegistration?: { displayName: string } | null;
+  inviterUser?: { nickname: string } | null;
+  source: string | null;
+}) {
+  if (share.inviterUser) {
+    return `发起人：${share.inviterUser.nickname}`;
+  }
+
+  if (share.inviterGuestRegistration) {
+    return `参与者：${share.inviterGuestRegistration.displayName}`;
+  }
+
+  return share.source === "organizer" ? "发起人邀请" : "未知来源";
+}
+
+function getGuestRegistrationStatusLabel(status: string) {
+  if (status === "WAITLIST") {
+    return "候补";
+  }
+
+  if (status === "CANCELLED") {
+    return "已取消";
+  }
+
+  return "有效";
+}
+
 export default async function ActivityGuestRegistrationsPage({
   params,
 }: ActivityGuestRegistrationsPageProps) {
@@ -43,6 +71,9 @@ export default async function ActivityGuestRegistrationsPage({
 
   const activeCount = activity.guestRegistrations
     .filter((registration) => registration.status === "ACTIVE")
+    .reduce((sum, registration) => sum + registration.attendeeCount, 0);
+  const waitlistCount = activity.guestRegistrations
+    .filter((registration) => registration.status === "WAITLIST")
     .reduce((sum, registration) => sum + registration.attendeeCount, 0);
 
   return (
@@ -67,6 +98,7 @@ export default async function ActivityGuestRegistrationsPage({
             <p className="mt-2 text-sm text-zinc-500">
               当前游客报名 {activeCount}
               {activity.capacity > 0 ? ` / ${activity.capacity}` : ""} 人
+              {waitlistCount > 0 ? ` · 候补 ${waitlistCount} 人` : ""}
             </p>
           </div>
           <span className="inline-flex h-10 items-center gap-2 rounded-full bg-[#fff8ec] px-4 text-sm font-semibold text-[#7e5f3a] ring-1 ring-[#ead7b8]">
@@ -75,6 +107,45 @@ export default async function ActivityGuestRegistrationsPage({
           </span>
         </div>
       </section>
+
+      {activity.shares.length > 0 ? (
+        <section className="rounded-[1.5rem] bg-white/86 p-4 shadow-sm ring-1 ring-[#ead7b8] sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-semibold text-ink">邀请来源</h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                按个人邀请链接统计点击和报名转化。
+              </p>
+            </div>
+            <span className="rounded-full bg-[#fff8ec] px-3 py-1 text-xs font-semibold text-[#7e5f3a] ring-1 ring-[#ead7b8]">
+              {activity.shares.length} 个邀请链接
+            </span>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {activity.shares.map((share) => (
+              <article
+                className="rounded-2xl bg-[#fffaf2] p-3 ring-1 ring-[#ead7b8]"
+                key={share.id}
+              >
+                <p className="truncate text-sm font-semibold text-ink">
+                  {getShareSourceLabel(share)}
+                </p>
+                <p className="mt-1 truncate text-xs text-zinc-500">
+                  {share.shareToken}
+                </p>
+                <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-[#7e5f3a]">
+                  <span className="rounded-full bg-white px-2 py-1 ring-1 ring-[#ead7b8]">
+                    点击 {share._count.clicks}
+                  </span>
+                  <span className="rounded-full bg-white px-2 py-1 ring-1 ring-[#ead7b8]">
+                    报名 {share._count.registrations}
+                  </span>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="overflow-hidden rounded-[1.5rem] bg-white/86 shadow-sm ring-1 ring-[#ead7b8]">
         <div className="flex items-center justify-between gap-3 border-b border-[#ead7b8] px-4 py-3">
@@ -108,7 +179,7 @@ export default async function ActivityGuestRegistrationsPage({
                       {registration.attendeeCount} 人
                     </span>
                     <span className="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-zinc-500 ring-1 ring-[#ead7b8]">
-                      {registration.status === "ACTIVE" ? "有效" : "已取消"}
+                      {getGuestRegistrationStatusLabel(registration.status)}
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-zinc-500">
@@ -119,6 +190,15 @@ export default async function ActivityGuestRegistrationsPage({
                       备注：{registration.note}
                     </p>
                   ) : null}
+                  {registration.invitedByShare ? (
+                    <p className="mt-1 text-xs leading-5 text-[#7e5f3a]">
+                      来源：{getShareSourceLabel(registration.invitedByShare)}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-xs leading-5 text-zinc-400">
+                      来源：直接访问
+                    </p>
+                  )}
                 </div>
                 <p className="text-sm text-zinc-500">
                   {formatDate(registration.joinedAt, locale)}

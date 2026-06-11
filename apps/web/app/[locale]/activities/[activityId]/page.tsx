@@ -11,7 +11,9 @@ import {
   MapPin,
   MessageCircle,
   Pencil,
+  QrCode,
   ShieldAlert,
+  Share2,
   Route,
   Store,
   Ticket,
@@ -65,6 +67,7 @@ import { getViewerFriendIds } from "@/features/friends/queries/getViewerFriendId
 import { openActivityOrganizerConversationAction } from "@/features/direct-messages/actions/directMessageActions";
 import { getPublicEventCopy } from "@/features/public-events/copy";
 import { ReportDialog } from "@/features/reports/components/ReportDialog";
+import { ensureOrganizerActivityShare } from "@/features/wechat-bridge/queries/activityShare";
 import { getOptionalCurrentUserProfileSnapshot } from "@/lib/auth";
 import { getCategoryLabel, getCopy, getTypeLabel } from "@/lib/copy";
 import { createPerformanceTracker } from "@/lib/performance";
@@ -94,12 +97,11 @@ export default async function ActivityDetailPage({
   const viewerProfile = await perf.measure("activity.viewerProfile", () =>
     getOptionalCurrentUserProfileSnapshot(),
   );
-  const viewerFriendIds =
-    viewerProfile?.id
-      ? await perf.measure("activity.viewerFriends", () =>
-          getViewerFriendIds(viewerProfile.id),
-        )
-      : [];
+  const viewerFriendIds = viewerProfile?.id
+    ? await perf.measure("activity.viewerFriends", () =>
+        getViewerFriendIds(viewerProfile.id),
+      )
+    : [];
   const [activity, activityIsFavorited] = await Promise.all([
     perf.measure("activity.primary", () =>
       getActivityById(activityId, viewerProfile?.id ?? null, viewerFriendIds),
@@ -160,17 +162,20 @@ export default async function ActivityDetailPage({
     const unavailableDescription = isEndedByTime
       ? publicEventCopy.teamSectionEndedDescription
       : publicEventCopy.teamSectionUnavailableDescription;
-    perf.finish({
-      itemKind: "public_event",
-      hasViewer: Boolean(viewerProfile),
-    }, {
-      referrer,
-      route: `/${locale}/activities/${activity.id}`,
-      routeKey: "public_event_detail",
-      sourceSurface: "public_event_detail",
-      userAgent: requestHeaders.get("user-agent"),
-      userProfileId: viewerProfile?.id,
-    });
+    perf.finish(
+      {
+        itemKind: "public_event",
+        hasViewer: Boolean(viewerProfile),
+      },
+      {
+        referrer,
+        route: `/${locale}/activities/${activity.id}`,
+        routeKey: "public_event_detail",
+        sourceSurface: "public_event_detail",
+        userAgent: requestHeaders.get("user-agent"),
+        userProfileId: viewerProfile?.id,
+      },
+    );
 
     return (
       <PageContainer className="space-y-6">
@@ -432,23 +437,23 @@ export default async function ActivityDetailPage({
     );
   }
 
-  const [
-    viewerParticipation,
-    isFollowingOrganizer,
-    comments,
-    friendSignal,
-  ] = await perf.measure("activity.viewerData", () =>
-    Promise.all([
-      getActivityViewerParticipation(activity.id, viewerProfile?.id),
-      getViewerFollowState(viewerProfile?.id, activity.organizer.id),
-      getActivityComments(
-        activity.id,
-        viewerProfile?.id ?? null,
-        viewerFriendIds,
-      ),
-      getActivityFriendSignal(activity.id, viewerProfile?.id, viewerFriendIds),
-    ]),
-  );
+  const [viewerParticipation, isFollowingOrganizer, comments, friendSignal] =
+    await perf.measure("activity.viewerData", () =>
+      Promise.all([
+        getActivityViewerParticipation(activity.id, viewerProfile?.id),
+        getViewerFollowState(viewerProfile?.id, activity.organizer.id),
+        getActivityComments(
+          activity.id,
+          viewerProfile?.id ?? null,
+          viewerFriendIds,
+        ),
+        getActivityFriendSignal(
+          activity.id,
+          viewerProfile?.id,
+          viewerFriendIds,
+        ),
+      ]),
+    );
   const participantPercent = getActivityParticipantPercent(activity);
   const displayStatus = getActivityDisplayStatus(activity);
   const itineraryItems = getActivityItineraryItems(activity);
@@ -474,6 +479,34 @@ export default async function ActivityDetailPage({
     activity.visibility === "PRIVATE"
       ? t.activityDetail.visibilityPrivate
       : t.activityDetail.visibilityPublic;
+  const organizerShare =
+    isOrganizer && viewerProfile
+      ? await ensureOrganizerActivityShare({
+          activityId: activity.id,
+          organizerId: viewerProfile.id,
+        })
+      : null;
+  const requestHost =
+    requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  const requestProtocol = requestHeaders.get("x-forwarded-proto") ?? "https";
+  const organizerInvitePath = organizerShare
+    ? `${withLocale(locale, `/e/${activity.id}`)}?inv=${encodeURIComponent(
+        organizerShare.shareToken,
+      )}`
+    : withLocale(locale, `/e/${activity.id}`);
+  const organizerInviteUrl = requestHost
+    ? `${requestProtocol}://${requestHost}${organizerInvitePath}`
+    : organizerInvitePath;
+  const organizerInviteAssetParams = new URLSearchParams({
+    locale,
+  });
+
+  if (organizerShare) {
+    organizerInviteAssetParams.set("inv", organizerShare.shareToken);
+  }
+
+  const organizerInviteQrPath = `/api/activities/${activity.id}/guest-registration-qr?${organizerInviteAssetParams.toString()}`;
+  const organizerInvitePosterPath = `/api/activities/${activity.id}/guest-registration-poster?${organizerInviteAssetParams.toString()}`;
   const [pendingParticipants, analyticsSummary] = await perf.measure(
     "activity.organizerData",
     () =>
@@ -486,19 +519,22 @@ export default async function ActivityDetailPage({
           : Promise.resolve(null),
       ]),
   );
-  perf.finish({
-    commentCount: comments.length,
-    hasViewer: Boolean(viewerProfile),
-    isOrganizer,
-    itemKind: "team",
-  }, {
-    referrer,
-    route: `/${locale}/activities/${activity.id}`,
-    routeKey: "activity_detail",
-    sourceSurface: "activity_detail",
-    userAgent: requestHeaders.get("user-agent"),
-    userProfileId: viewerProfile?.id,
-  });
+  perf.finish(
+    {
+      commentCount: comments.length,
+      hasViewer: Boolean(viewerProfile),
+      isOrganizer,
+      itemKind: "team",
+    },
+    {
+      referrer,
+      route: `/${locale}/activities/${activity.id}`,
+      routeKey: "activity_detail",
+      sourceSurface: "activity_detail",
+      userAgent: requestHeaders.get("user-agent"),
+      userProfileId: viewerProfile?.id,
+    },
+  );
 
   return (
     <PageContainer className="space-y-6">
@@ -755,7 +791,10 @@ export default async function ActivityDetailPage({
                   {canEditActivity ? (
                     <Link
                       className="inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-white px-4 text-sm font-medium text-zinc-950 ring-1 ring-zinc-200 transition hover:bg-zinc-50"
-                      href={withLocale(locale, `/activities/${activity.id}/edit`)}
+                      href={withLocale(
+                        locale,
+                        `/activities/${activity.id}/edit`,
+                      )}
                     >
                       <Pencil className="h-4 w-4" />
                       {t.activityDetail.editActivity}
@@ -768,6 +807,47 @@ export default async function ActivityDetailPage({
                     <ExternalLink className="h-4 w-4" />
                     公开 H5 报名页
                   </Link>
+                  {organizerShare ? (
+                    <div className="rounded-2xl border border-[#ead7b8] bg-[#fff8ec] p-3">
+                      <p className="flex items-center gap-2 text-sm font-semibold text-ink">
+                        <Share2 className="h-4 w-4 text-[#9a7448]" />
+                        个人邀请链接
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-zinc-500">
+                        通过这个链接报名的人会记录到你的邀请来源。
+                      </p>
+                      <div className="mt-3 flex min-w-0 items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm text-zinc-600 ring-1 ring-[#ead7b8]">
+                        <span className="min-w-0 flex-1 truncate">
+                          {organizerInviteUrl}
+                        </span>
+                        <ActivityCopyButton
+                          failedLabel="复制失败"
+                          label="复制邀请链接"
+                          successLabel="已复制"
+                          value={organizerInviteUrl}
+                        />
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <a
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#eaf6ef] px-3 text-xs font-semibold text-moss ring-1 ring-[#bdd9c5] transition hover:bg-[#dceede]"
+                          href={organizerInviteQrPath}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          <QrCode className="h-3.5 w-3.5" />
+                          二维码
+                        </a>
+                        <a
+                          className="inline-flex h-10 items-center justify-center rounded-full bg-white px-3 text-xs font-semibold text-[#7e5f3a] ring-1 ring-[#ead7b8] transition hover:bg-[#fff8ec]"
+                          href={organizerInvitePosterPath}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          邀请海报
+                        </a>
+                      </div>
+                    </div>
+                  ) : null}
                   <Link
                     className="inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-white px-4 text-sm font-medium text-zinc-950 ring-1 ring-zinc-200 transition hover:bg-zinc-50"
                     href={withLocale(
@@ -810,7 +890,9 @@ export default async function ActivityDetailPage({
                     isClosed={isClosed}
                     isOrganizer={isOrganizer}
                     isAuthenticated={Boolean(viewerProfile)}
-                    viewerParticipationStatus={viewerParticipation?.status ?? null}
+                    viewerParticipationStatus={
+                      viewerParticipation?.status ?? null
+                    }
                   />
                   {canContactOrganizer ? (
                     <ContactOrganizerForm

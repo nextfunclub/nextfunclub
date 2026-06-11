@@ -65,6 +65,7 @@ enum ParticipantStatus {
 
 enum GuestRegistrationStatus {
   ACTIVE
+  WAITLIST
   CANCELLED
 }
 
@@ -148,6 +149,7 @@ model UserProfile {
   clerkDeletedAt            DateTime?
   syncedAt                  DateTime?
   activities                Activity[]                  @relation("ActivityOrganizer")
+  activityShares            ActivityShare[]             @relation("ActivityShareInviterUser")
   participations            ActivityParticipant[]
   comments                  Comment[]
   notifications             Notification[]              @relation("NotificationRecipient")
@@ -210,6 +212,7 @@ model Activity {
   merchant           Merchant?                   @relation(fields: [merchantId], references: [id], onDelete: SetNull)
   participants       ActivityParticipant[]
   guestRegistrations ActivityGuestRegistration[]
+  shares             ActivityShare[]
   comments           Comment[]
   notifications      Notification[]
   sourceLinks        ActivitySourceLink[]
@@ -349,6 +352,7 @@ model ActivityGuestRegistration {
   status                GuestRegistrationStatus @default(ACTIVE)
   registrationTokenHash String                  @unique
   claimTokenHash        String                  @unique
+  invitedByShareId      String?
   source                String?
   shareToken            String?
   joinedAt              DateTime                @default(now())
@@ -358,11 +362,48 @@ model ActivityGuestRegistration {
   activity              Activity                @relation(fields: [activityId], references: [id], onDelete: Cascade)
   guest                 GuestIdentity           @relation(fields: [guestId], references: [id], onDelete: Cascade)
   claimedByUser         UserProfile?            @relation(fields: [claimedByUserId], references: [id], onDelete: SetNull)
+  invitedByShare        ActivityShare?          @relation("ActivityRegistrationShare", fields: [invitedByShareId], references: [id], onDelete: SetNull)
+  activityShares        ActivityShare[]         @relation("ActivityShareInviterGuestRegistration")
 
   @@index([activityId, status, joinedAt])
   @@index([guestId, createdAt])
   @@index([claimedByUserId])
+  @@index([invitedByShareId])
   @@index([shareToken])
+}
+
+model ActivityShare {
+  id                         String                      @id @default(cuid())
+  activityId                 String
+  inviterUserId              String?
+  inviterGuestRegistrationId String?
+  shareToken                 String                      @unique
+  channel                    String                      @default("wechat_h5")
+  source                     String?
+  activity                   Activity                    @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  inviterUser                UserProfile?                @relation("ActivityShareInviterUser", fields: [inviterUserId], references: [id], onDelete: SetNull)
+  inviterGuestRegistration   ActivityGuestRegistration?  @relation("ActivityShareInviterGuestRegistration", fields: [inviterGuestRegistrationId], references: [id], onDelete: SetNull)
+  registrations              ActivityGuestRegistration[] @relation("ActivityRegistrationShare")
+  clicks                     ActivityShareClick[]
+  createdAt                  DateTime                    @default(now())
+  updatedAt                  DateTime                    @updatedAt
+
+  @@unique([activityId, inviterUserId])
+  @@unique([activityId, inviterGuestRegistrationId])
+  @@index([activityId, createdAt])
+  @@index([inviterUserId])
+  @@index([inviterGuestRegistrationId])
+}
+
+model ActivityShareClick {
+  id            String        @id @default(cuid())
+  shareId       String
+  share         ActivityShare @relation(fields: [shareId], references: [id], onDelete: Cascade)
+  userAgentHash String?
+  referrer      String?
+  createdAt     DateTime      @default(now())
+
+  @@index([shareId, createdAt])
 }
 
 model ActivityFavorite {

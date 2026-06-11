@@ -20,7 +20,7 @@ type GuestRegistrationFormProps = {
 
 const initialState: GuestRegistrationState = {};
 
-function SubmitButton() {
+function SubmitButton({ isWaitlist }: { isWaitlist: boolean }) {
   const { pending } = useFormStatus();
 
   return (
@@ -33,7 +33,7 @@ function SubmitButton() {
       {pending ? (
         <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
       ) : null}
-      {pending ? "正在报名" : "我要参加"}
+      {pending ? "正在提交" : isWaitlist ? "加入候补" : "我要参加"}
     </Button>
   );
 }
@@ -62,24 +62,18 @@ export function GuestRegistrationForm({
     );
   }
 
-  if (isFull) {
-    return (
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-5">
-        <p className="font-semibold text-amber-900">名额已满</p>
-        <p className="mt-1 text-sm leading-6 text-amber-800">
-          当前活动人数已满，请联系发起人确认是否还有候补名额。
-        </p>
-      </div>
-    );
-  }
-
-  const attendeeMax = remainingSeats
-    ? Math.min(8, Math.max(remainingSeats, 1))
-    : 8;
+  const isWaitlist = isFull || remainingSeats === 0;
+  const attendeeMax = isWaitlist
+    ? 8
+    : remainingSeats
+      ? Math.min(8, Math.max(remainingSeats, 1))
+      : 8;
   const seatHint =
     remainingSeats === null
       ? "当前活动暂不限制总名额"
-      : `当前还剩 ${remainingSeats} 个名额`;
+      : isWaitlist
+        ? "名额已满，提交后进入候补"
+        : `当前还剩 ${remainingSeats} 个名额`;
 
   return (
     <form action={formAction} className="grid gap-3">
@@ -90,6 +84,11 @@ export function GuestRegistrationForm({
       {state.formError ? (
         <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
           {state.formError}
+        </div>
+      ) : null}
+      {isWaitlist ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900">
+          正式名额已满。你仍然可以提交候补，发起人会在有人取消或加名额时联系你。
         </div>
       ) : null}
 
@@ -162,7 +161,7 @@ export function GuestRegistrationForm({
         ) : null}
       </label>
 
-      <SubmitButton />
+      <SubmitButton isWaitlist={isWaitlist} />
       <p className="text-center text-xs leading-5 text-zinc-500">
         报名不需要登录。提交后会生成报名凭证，请保存链接。
       </p>
