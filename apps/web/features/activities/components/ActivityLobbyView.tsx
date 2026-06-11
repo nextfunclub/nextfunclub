@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, type ReactNode } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { getCopy } from "@/lib/copy";
 import { withLocale } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -43,6 +44,8 @@ type StatusFilterOption = {
   count: number;
   label: string;
 };
+
+const LOBBY_PAGE_SIZE = 10;
 
 type EmptyLobbyAction = {
   description: string;
@@ -293,6 +296,19 @@ function getLobbyActivityKey(activity: ActivityCardViewModel) {
     : `activity:${activity.id}`;
 }
 
+function getLobbyTotalPages(totalItems: number) {
+  return Math.max(1, Math.ceil(totalItems / LOBBY_PAGE_SIZE));
+}
+
+function getPagedLobbyActivities(
+  activities: ActivityCardViewModel[],
+  page: number,
+) {
+  const startIndex = (page - 1) * LOBBY_PAGE_SIZE;
+
+  return activities.slice(startIndex, startIndex + LOBBY_PAGE_SIZE);
+}
+
 function dedupeLobbyActivities(activities: ActivityCardViewModel[]) {
   const activityByKey = new Map<string, ActivityCardViewModel>();
 
@@ -414,6 +430,70 @@ function FilterGroupRow({ children, label }: FilterGroupRowProps) {
   );
 }
 
+function LobbyPagination({
+  locale,
+  onPageChange,
+  page,
+  totalItems,
+}: {
+  locale: string;
+  onPageChange: (page: number) => void;
+  page: number;
+  totalItems: number;
+}) {
+  const totalPages = getLobbyTotalPages(totalItems);
+
+  if (totalPages <= 1) {
+    return null;
+  }
+
+  const t = getCopy(locale).activityPagination;
+  const previousDisabled = page <= 1;
+  const nextDisabled = page >= totalPages;
+  const progressPercent = Math.round((page / totalPages) * 100);
+  const buttonClassName =
+    "inline-flex h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-[#dfccb2] bg-white/88 px-2 text-xs font-semibold text-[#5b4b3a] shadow-sm shadow-black/5 transition hover:border-[#d8b895] hover:bg-white disabled:cursor-not-allowed disabled:border-[#eadfce] disabled:bg-[#fbf7ef]/72 disabled:text-zinc-400 disabled:shadow-none sm:px-3 sm:text-sm";
+
+  return (
+    <nav
+      aria-label="Lobby pagination"
+      className="mx-auto flex w-full max-w-[34rem] flex-col gap-2 rounded-[1.5rem] border border-[#e4d5bd] bg-[linear-gradient(180deg,rgba(255,252,246,0.96),rgba(249,241,229,0.92))] p-2 shadow-[0_12px_26px_rgba(94,80,52,0.08)] sm:rounded-full sm:p-2.5"
+    >
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+        <button
+          type="button"
+          className={buttonClassName}
+          disabled={previousDisabled}
+          onClick={() => onPageChange(Math.max(page - 1, 1))}
+        >
+          <ChevronLeft className="h-4 w-4 shrink-0" />
+          {t.previous}
+        </button>
+        <div className="min-w-20 text-center">
+          <p className="text-xs font-semibold text-[#5b4b3a] sm:text-sm">
+            {t.pageSummary(page, totalPages)}
+          </p>
+          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[#eadfce]">
+            <div
+              className="h-full rounded-full bg-[#df8d6e]"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+        </div>
+        <button
+          type="button"
+          className={buttonClassName}
+          disabled={nextDisabled}
+          onClick={() => onPageChange(Math.min(page + 1, totalPages))}
+        >
+          {t.next}
+          <ChevronRight className="h-4 w-4 shrink-0" />
+        </button>
+      </div>
+    </nav>
+  );
+}
+
 export function ActivityLobbyPreviewView({
   activities,
   locale,
@@ -422,6 +502,26 @@ export function ActivityLobbyPreviewView({
   locale: string;
 }) {
   const previewCopy = getActivityLobbyPreviewCopy(locale);
+  const [page, setPage] = useState(1);
+  const dedupedActivities = useMemo(
+    () => dedupeLobbyActivities(activities),
+    [activities],
+  );
+  const totalPages = getLobbyTotalPages(dedupedActivities.length);
+  const visibleActivities = useMemo(
+    () => getPagedLobbyActivities(dedupedActivities, page),
+    [dedupedActivities, page],
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [dedupedActivities.length]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   return (
     <div className="space-y-6">
@@ -456,14 +556,14 @@ export function ActivityLobbyPreviewView({
         </div>
       </section>
 
-      <section className="space-y-4 rounded-[1.5rem] border border-black/8 bg-white/78 p-4 shadow-sm shadow-black/5 sm:p-5">
+      <section className="space-y-4 sm:rounded-[1.5rem] sm:border sm:border-black/8 sm:bg-white/78 sm:p-5 sm:shadow-sm sm:shadow-black/5">
         <div>
           <h2 className="text-xl font-semibold text-ink">
             {previewCopy.sectionTitle}
           </h2>
         </div>
 
-        {activities.length === 0 ? (
+        {dedupedActivities.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-zinc-200 bg-paper/65 px-4 py-7 text-center">
             <p className="text-sm font-semibold text-zinc-700">
               {previewCopy.emptyTitle}
@@ -473,20 +573,29 @@ export function ActivityLobbyPreviewView({
             </p>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {activities.map((activity) => (
-              <ActivityCard
-                key={activity.id}
-                activity={activity}
-                favoriteRedirectPath="/lobby"
-                isAuthenticated={false}
-                locale={locale}
-                showFavoriteButton
-                showPrimaryAction={!isPublicEventCard(activity)}
-                sourceSurface="activity_list"
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid gap-3 min-[380px]:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-5">
+              {visibleActivities.map((activity) => (
+                <ActivityCard
+                  key={getLobbyActivityKey(activity)}
+                  activity={activity}
+                  favoriteRedirectPath="/lobby"
+                  isAuthenticated={false}
+                  locale={locale}
+                  mobileDense
+                  showFavoriteButton
+                  showPrimaryAction={!isPublicEventCard(activity)}
+                  sourceSurface="activity_list"
+                />
+              ))}
+            </div>
+            <LobbyPagination
+              locale={locale}
+              onPageChange={setPage}
+              page={page}
+              totalItems={dedupedActivities.length}
+            />
+          </>
         )}
       </section>
     </div>
@@ -507,6 +616,7 @@ export function ActivityLobbyView({
   const [activeFilter, setActiveFilter] = useState<LobbyFilterId>("all");
   const [activeStatusFilter, setActiveStatusFilter] =
     useState<LobbyStatusFilterId>("all");
+  const [page, setPage] = useState(1);
   const categoryGroups = useMemo(
     () => [
       {
@@ -582,6 +692,11 @@ export function ActivityLobbyView({
       ),
     [activeCategoryActivities, activeStatusFilter],
   );
+  const totalPages = getLobbyTotalPages(visibleActivities.length);
+  const visiblePageActivities = useMemo(
+    () => getPagedLobbyActivities(visibleActivities, page),
+    [page, visibleActivities],
+  );
   const filterOptions: FilterOption[] = categoryGroups.map((group) => ({
     id: group.id,
     count: group.activities.length,
@@ -607,9 +722,19 @@ export function ActivityLobbyView({
     filterOptions.find((option) => option.id === activeFilter)?.label ??
     getAllLabel(locale);
 
+  useEffect(() => {
+    setPage(1);
+  }, [activeFilter, activeStatusFilter]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
   return (
     <div className="space-y-5">
-      <section className="rounded-[1.5rem] border border-[#e1d5c2] bg-[linear-gradient(180deg,rgba(255,252,246,0.94),rgba(250,244,234,0.9))] p-3 shadow-[0_10px_26px_rgba(94,80,52,0.05)] sm:p-4">
+      <section className="sm:rounded-[1.5rem] sm:border sm:border-[#e1d5c2] sm:bg-[linear-gradient(180deg,rgba(255,252,246,0.94),rgba(250,244,234,0.9))] sm:p-4 sm:shadow-[0_10px_26px_rgba(94,80,52,0.05)]">
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1 px-1 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
             <h1 className="sr-only">{t.title}</h1>
@@ -628,7 +753,7 @@ export function ActivityLobbyView({
             </p>
           </div>
 
-          <div className="grid gap-2">
+          <div className="grid gap-2 sm:gap-2">
             <FilterGroupRow label={filterCopy.category}>
               {filterOptions.map((option) => {
                 const active = option.id === activeFilter;
@@ -771,20 +896,27 @@ export function ActivityLobbyView({
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {visibleActivities.map((activity) => (
+          <div className="grid gap-3 min-[380px]:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+            {visiblePageActivities.map((activity) => (
               <ActivityCard
                 key={getLobbyActivityKey(activity)}
                 activity={activity}
                 favoriteRedirectPath="/lobby"
                 isAuthenticated
                 locale={locale}
+                mobileDense
                 showFavoriteButton
                 showPrimaryAction={!isPublicEventCard(activity)}
                 sourceSurface="activity_list"
               />
             ))}
           </div>
+          <LobbyPagination
+            locale={locale}
+            onPageChange={setPage}
+            page={page}
+            totalItems={visibleActivities.length}
+          />
         </section>
       )}
     </div>

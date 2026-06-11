@@ -83,11 +83,20 @@ export function LoadingToolbarSkeleton({
   );
 }
 
-export function LoadingCardSkeleton({ delay = 0 }: { delay?: number }) {
+export function LoadingCardSkeleton({
+  compact = false,
+  delay = 0,
+}: {
+  compact?: boolean;
+  delay?: number;
+}) {
   return (
     <article className="overflow-hidden rounded-lg border border-black/10 bg-white/80 shadow-sm">
-      <ShimmerBlock className="h-36 rounded-none" delay={delay} />
-      <div className="space-y-3 p-4">
+      <ShimmerBlock
+        className={cn("rounded-none", compact ? "h-24 sm:h-36" : "h-36")}
+        delay={delay}
+      />
+      <div className={cn("space-y-3 p-4", compact ? "p-3 sm:p-4" : null)}>
         <ShimmerBlock className="h-5 w-4/5" delay={delay + 50} />
         <ShimmerBlock className="h-5 w-3/5" delay={delay + 80} />
         <div className="space-y-2 pt-1">

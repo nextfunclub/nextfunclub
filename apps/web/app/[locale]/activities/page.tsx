@@ -25,6 +25,7 @@ import { normalizeAnalyticsLocale } from "@/features/analytics/events";
 import { queueAnalyticsEvent } from "@/features/analytics/server";
 import { getOptionalCurrentUserProfileSnapshot } from "@/lib/auth";
 import { getCopy } from "@/lib/copy";
+import { isMobileUserAgent } from "@/lib/mobile-root-lobby-entry";
 import { createPerformanceTracker } from "@/lib/performance";
 import { withLocale } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -37,6 +38,8 @@ type ActivitiesPageProps = {
 };
 
 export const dynamic = "force-dynamic";
+
+const mobileActivityPageSize = 14;
 
 function ActivityPagination({
   filters,
@@ -63,20 +66,18 @@ function ActivityPagination({
   });
   const previousDisabled = list.page <= 1;
   const nextDisabled = list.page >= list.totalPages;
+  const progressPercent = Math.round((list.page / list.totalPages) * 100);
   const linkClassName =
-    "inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-md bg-white px-3 text-sm font-medium text-zinc-950 ring-1 ring-zinc-200 transition hover:bg-zinc-50 aria-disabled:pointer-events-none aria-disabled:opacity-45";
+    "inline-flex h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-[#dfccb2] bg-white/88 px-2 text-xs font-semibold text-[#5b4b3a] shadow-sm shadow-black/5 transition hover:border-[#d8b895] hover:bg-white sm:px-3 sm:text-sm";
   const disabledClassName =
-    "inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-md bg-white px-3 text-sm font-medium text-zinc-400 ring-1 ring-zinc-200";
+    "inline-flex h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-[#eadfce] bg-[#fbf7ef]/72 px-2 text-xs font-semibold text-zinc-400 sm:px-3 sm:text-sm";
 
   return (
     <nav
       aria-label="Activity pagination"
-      className="flex flex-col gap-3 rounded-lg border border-black/10 bg-white/70 p-3 sm:flex-row sm:items-center sm:justify-between"
+      className="mx-auto flex w-full max-w-[34rem] flex-col gap-2 rounded-[1.5rem] border border-[#e4d5bd] bg-[linear-gradient(180deg,rgba(255,252,246,0.96),rgba(249,241,229,0.92))] p-2 shadow-[0_12px_26px_rgba(94,80,52,0.08)] sm:rounded-full sm:p-2.5"
     >
-      <p className="text-center text-sm font-medium text-zinc-600 sm:text-left">
-        {t.activityPagination.pageSummary(list.page, list.totalPages)}
-      </p>
-      <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
         {previousDisabled ? (
           <span className={cn(disabledClassName, "justify-self-stretch")}>
             <ChevronLeft className="h-4 w-4 shrink-0" />
@@ -92,6 +93,17 @@ function ActivityPagination({
             {t.activityPagination.previous}
           </Link>
         )}
+        <div className="min-w-20 text-center">
+          <p className="text-xs font-semibold text-[#5b4b3a] sm:text-sm">
+            {t.activityPagination.pageSummary(list.page, list.totalPages)}
+          </p>
+          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[#eadfce]">
+            <div
+              className="h-full rounded-full bg-[#df8d6e]"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+        </div>
         {nextDisabled ? (
           <span className={cn(disabledClassName, "justify-self-stretch")}>
             {t.activityPagination.next}
@@ -152,11 +164,16 @@ export default async function ActivitiesPage({
   const viewerProfile = await perf.measure("viewer.profile", () =>
     getOptionalCurrentUserProfileSnapshot(),
   );
+  const requestHeaders = await headers();
+  const referrer = requestHeaders.get("referer");
+  const userAgent = requestHeaders.get("user-agent");
+  const isMobileRequest = isMobileUserAgent(userAgent);
   const [activitiesResult, filterOptions] = await perf.measure(
     "activity.data",
     () =>
       Promise.all([
         getActivityList(filters, {
+          pageSize: isMobileRequest ? mobileActivityPageSize : undefined,
           publicInfoOnly: true,
           viewerProfileId: viewerProfile?.id,
         })
@@ -184,9 +201,6 @@ export default async function ActivitiesPage({
   }
 
   if (activitiesResult.list) {
-    const requestHeaders = await headers();
-    const referrer = requestHeaders.get("referer");
-    const userAgent = requestHeaders.get("user-agent");
     const activeFilterNames = getActiveActivityFilterNames(filters);
     const filterCount = getActiveActivityFilterCount(filters);
     const publicEventCount = activitiesResult.list.activities.length;
@@ -302,13 +316,14 @@ export default async function ActivitiesPage({
         />
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <div className="grid gap-3 min-[380px]:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-5">
             {activitiesResult.list.activities.map((activity) => (
               <ActivityCard
                 key={activity.id}
                 activity={activity}
                 isAuthenticated={Boolean(viewerProfile)}
                 locale={locale}
+                mobileDense
                 showFavoriteButton
                 showPrimaryAction={false}
                 sourceSurface="activity_list"
