@@ -20,6 +20,7 @@ import type {
 } from "../utils/activityFilters";
 
 export const visibleActivityStatuses: ActivityStatus[] = [
+  "OPEN",
   "RECRUITING",
   "CONFIRMED",
 ];
