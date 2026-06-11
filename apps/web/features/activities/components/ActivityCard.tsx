@@ -30,6 +30,7 @@ type ActivityCardProps = {
   favoriteRedirectPath?: string;
   isAuthenticated?: boolean;
   locale: string;
+  mobileDense?: boolean;
   showFavoriteButton?: boolean;
   showPrimaryAction?: boolean;
   sourceSurface?: AnalyticsSourceSurface;
@@ -189,6 +190,7 @@ export function ActivityCard({
   favoriteRedirectPath = "/activities",
   isAuthenticated = false,
   locale,
+  mobileDense = false,
   showFavoriteButton = false,
   showPrimaryAction = true,
   sourceSurface = "activity_list",
@@ -318,6 +320,8 @@ export function ActivityCard({
         ) : null}
       </span>
     ) : null;
+  const mobileDenseClass = (className: string) =>
+    mobileDense ? className : null;
 
   return (
     <Card
@@ -337,11 +341,19 @@ export function ActivityCard({
       )}
     >
       {showFavoriteButton && isActivityInfo && activity.publicEventId ? (
-        <div className="absolute right-3 top-3 z-20">
+        <div
+          className={cn(
+            "absolute right-3 top-3 z-20",
+            mobileDenseClass("max-[639px]:right-2 max-[639px]:top-2"),
+          )}
+        >
           <PublicEventFavoriteButton
             favoriteCount={activity.favoriteCount}
             publicEventId={activity.publicEventId}
-            className="h-9 w-9"
+            className={cn(
+              "h-9 w-9",
+              mobileDenseClass("max-[639px]:h-8 max-[639px]:w-8"),
+            )}
             isAuthenticated={isAuthenticated}
             isFavorited={Boolean(activity.isFavorited)}
             locale={locale}
@@ -352,10 +364,18 @@ export function ActivityCard({
         </div>
       ) : null}
       {showFavoriteButton && (!isActivityInfo || !activity.publicEventId) ? (
-        <div className="absolute right-3 top-3 z-20">
+        <div
+          className={cn(
+            "absolute right-3 top-3 z-20",
+            mobileDenseClass("max-[639px]:right-2 max-[639px]:top-2"),
+          )}
+        >
           <ActivityFavoriteButton
             activityId={activity.id}
-            className="h-9 w-9"
+            className={cn(
+              "h-9 w-9",
+              mobileDenseClass("max-[639px]:h-8 max-[639px]:w-8"),
+            )}
             favoriteCount={activity.favoriteCount}
             isAuthenticated={isAuthenticated}
             isFavorited={Boolean(activity.isFavorited)}
@@ -382,6 +402,7 @@ export function ActivityCard({
         <div
           className={cn(
             "relative flex h-28 items-end justify-between gap-2 overflow-hidden p-3 sm:h-36 sm:p-4",
+            mobileDenseClass("max-[639px]:h-24 max-[639px]:p-2.5"),
             coverTones[activity.coverTone],
             isInactiveCard ? "grayscale" : null,
           )}
@@ -403,6 +424,9 @@ export function ActivityCard({
           <span
             className={cn(
               "absolute left-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold leading-none shadow-[0_10px_24px_rgba(0,0,0,0.24)] backdrop-blur sm:left-4 sm:top-4",
+              mobileDenseClass(
+                "max-[639px]:left-2 max-[639px]:top-2 max-[639px]:gap-1 max-[639px]:px-2 max-[639px]:py-1 max-[639px]:text-[10px]",
+              ),
               isTeamCard
                 ? "border-[#f0b79f] bg-[#d88d72]/95 text-white"
                 : "border-[#9fc8d9] bg-[#eefaff]/95 text-[#245e76]",
@@ -422,6 +446,9 @@ export function ActivityCard({
               <span
                 className={cn(
                   "rounded-md px-2.5 py-1 text-[11px] font-semibold leading-none shadow-[0_8px_18px_rgba(0,0,0,0.24)] ring-1 ring-white/10",
+                  mobileDenseClass(
+                    "max-[639px]:px-2 max-[639px]:py-0.5 max-[639px]:text-[10px]",
+                  ),
                   isTeamCard
                     ? "bg-[rgba(103,59,34,0.84)] text-[#fff7ed]"
                     : "bg-[rgba(22,18,14,0.72)] text-[#fffaf2]",
@@ -430,23 +457,43 @@ export function ActivityCard({
                 {getCategoryLabel(activity.category, locale)}
               </span>
               {!isActivityInfo ? (
-                <span className="rounded-md bg-[rgba(255,250,242,0.94)] px-2.5 py-1 text-[11px] font-medium leading-none text-[#6f4d34] shadow-[0_8px_18px_rgba(0,0,0,0.18)]">
+                <span
+                  className={cn(
+                    "rounded-md bg-[rgba(255,250,242,0.94)] px-2.5 py-1 text-[11px] font-medium leading-none text-[#6f4d34] shadow-[0_8px_18px_rgba(0,0,0,0.18)]",
+                    mobileDenseClass(
+                      "max-[639px]:hidden max-[639px]:px-2 max-[639px]:py-0.5 max-[639px]:text-[10px]",
+                    ),
+                  )}
+                >
                   {getCardVisibilityLabel(activity.visibility, locale)}
                 </span>
               ) : null}
             </div>
             <div className="flex shrink-0 flex-col items-end gap-1.5">
-              <span className="rounded-md bg-[rgba(255,250,242,0.96)] px-2.5 py-1 text-[11px] font-medium leading-none text-zinc-900 shadow-[0_8px_18px_rgba(0,0,0,0.18)]">
+              <span
+                className={cn(
+                  "rounded-md bg-[rgba(255,250,242,0.96)] px-2.5 py-1 text-[11px] font-medium leading-none text-zinc-900 shadow-[0_8px_18px_rgba(0,0,0,0.18)]",
+                  mobileDenseClass(
+                    "max-[639px]:px-2 max-[639px]:py-0.5 max-[639px]:text-[10px]",
+                  ),
+                )}
+              >
                 {t.activityLabels.timeStates[timeState]}
               </span>
             </div>
           </div>
         </div>
 
-        <CardHeader className="p-4 pb-2 sm:p-5 sm:pb-2">
+        <CardHeader
+          className={cn(
+            "p-4 pb-2 sm:p-5 sm:pb-2",
+            mobileDenseClass("max-[639px]:p-3 max-[639px]:pb-1.5"),
+          )}
+        >
           <CardTitle
             className={cn(
               "line-clamp-2 text-base leading-snug sm:text-lg",
+              mobileDenseClass("max-[639px]:text-sm"),
               isInactiveCard ? "text-zinc-600" : null,
               !isInactiveCard && isTeamCard ? "text-[#24160f]" : null,
             )}
@@ -455,10 +502,18 @@ export function ActivityCard({
           </CardTitle>
         </CardHeader>
 
-        <CardContent className="flex flex-1 flex-col space-y-3 p-4 pt-0 sm:p-5 sm:pt-0">
+        <CardContent
+          className={cn(
+            "flex flex-1 flex-col space-y-3 p-4 pt-0 sm:p-5 sm:pt-0",
+            mobileDenseClass(
+              "max-[639px]:space-y-2 max-[639px]:p-3 max-[639px]:pt-0",
+            ),
+          )}
+        >
           <div
             className={cn(
               "grid gap-2 text-sm text-zinc-600",
+              mobileDenseClass("max-[639px]:gap-1.5 max-[639px]:text-xs"),
               isInactiveCard ? "text-zinc-500" : null,
             )}
           >
@@ -470,7 +525,12 @@ export function ActivityCard({
             ) : null}
             <span className="flex items-start gap-2">
               <CalendarDays className="mt-0.5 h-4 w-4 shrink-0" />
-              <span className="min-w-0">
+              <span
+                className={cn(
+                  "min-w-0",
+                  mobileDenseClass("max-[639px]:line-clamp-2"),
+                )}
+              >
                 {getActivityDateLabel(activity, locale)}
               </span>
             </span>
@@ -481,13 +541,27 @@ export function ActivityCard({
             {shouldShowParticipantCount ? (
               <span className="flex min-w-0 items-center gap-2">
                 <UsersRound className="mt-0.5 h-4 w-4 shrink-0" />
-                <span className="min-w-0">{participantLabel}</span>
+                <span
+                  className={cn(
+                    "min-w-0",
+                    mobileDenseClass("max-[639px]:truncate"),
+                  )}
+                >
+                  {participantLabel}
+                </span>
                 {participantAvatarStack ? (
-                  <span className="ml-auto">{participantAvatarStack}</span>
+                  <span
+                    className={cn(
+                      "ml-auto",
+                      mobileDenseClass("max-[639px]:hidden"),
+                    )}
+                  >
+                    {participantAvatarStack}
+                  </span>
                 ) : null}
               </span>
             ) : null}
-            {!shouldShowParticipantCount && participantAvatarStack ? (
+            {!mobileDense && !shouldShowParticipantCount && participantAvatarStack ? (
               <span className="flex min-w-0 items-center pl-6">
                 {participantAvatarStack}
               </span>
@@ -512,7 +586,12 @@ export function ActivityCard({
       </AnalyticsLink>
 
       {showPrimaryAction ? (
-        <div className="px-4 pb-4 pt-0 sm:px-5 sm:pb-5">
+        <div
+          className={cn(
+            "px-4 pb-4 pt-0 sm:px-5 sm:pb-5",
+            mobileDenseClass("max-[639px]:px-3 max-[639px]:pb-3"),
+          )}
+        >
           <AnalyticsLink
             href={actionHref}
             event={{

@@ -1,7 +1,7 @@
 import {
+  LoadingCardSkeleton,
   LoadingPageShell,
-  LoadingRowSkeleton,
-  LoadingSectionHeader,
+  LoadingToolbarSkeleton,
   ShimmerBlock,
 } from "@/components/ui/LoadingState";
 
@@ -11,21 +11,10 @@ export default function LobbyLoading() {
       <div className="max-w-md">
         <ShimmerBlock className="h-14 rounded-full border border-[#dccba8] bg-white/70" />
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        {[0, 1, 2, 3].map((section) => (
-          <section
-            key={section}
-            className="space-y-3 rounded-[1.25rem] border border-black/10 bg-white/65 p-4 shadow-sm"
-          >
-            <LoadingSectionHeader />
-            {[0, 1, 2].map((item) => (
-              <LoadingRowSkeleton
-                key={item}
-                action
-                delay={section * 60 + item * 45}
-              />
-            ))}
-          </section>
+      <LoadingToolbarSkeleton columns={4} />
+      <div className="grid gap-3 min-[380px]:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+        {[0, 1, 2, 3, 4, 5].map((item) => (
+          <LoadingCardSkeleton key={item} compact delay={item * 60} />
         ))}
       </div>
     </LoadingPageShell>

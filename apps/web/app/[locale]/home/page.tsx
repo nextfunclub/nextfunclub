@@ -145,13 +145,14 @@ export default async function HomePage({ params }: HomePageProps) {
               description={t.home.emptyRecentDescription}
             />
           ) : (
-            <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <div className="grid gap-3 min-[380px]:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-5">
               {activitiesResult.activities.map((activity) => (
                 <ActivityCard
                   key={activity.id}
                   activity={activity}
                   isAuthenticated={Boolean(viewerProfile)}
                   locale={locale}
+                  mobileDense
                   showFavoriteButton
                   showPrimaryAction={!isPublicEventCard(activity)}
                   sourceSurface="home_recent"
