@@ -72,8 +72,8 @@ function CompactEmptyState({
   description,
   title,
 }: {
-  actionHref: string;
-  actionLabel: string;
+  actionHref?: string;
+  actionLabel?: string;
   description: string;
   title: string;
 }) {
@@ -85,12 +85,14 @@ function CompactEmptyState({
           {description}
         </p>
       </div>
-      <Link
-        href={actionHref}
-        className="inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-white px-4 text-sm font-medium text-ink ring-1 ring-black/10 transition hover:bg-zinc-50"
-      >
-        {actionLabel}
-      </Link>
+      {actionHref && actionLabel ? (
+        <Link
+          href={actionHref}
+          className="inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-white px-4 text-sm font-medium text-ink ring-1 ring-black/10 transition hover:bg-zinc-50"
+        >
+          {actionLabel}
+        </Link>
+      ) : null}
     </div>
   );
 }
@@ -289,8 +291,8 @@ export function ProfileActivitySections({
           />
           {dashboard.createdActivities.length === 0 ? (
             <CompactEmptyState
-              actionHref={createdHref}
-              actionLabel={profileSpaceCopy.createdAction}
+              actionHref={isSelf ? createdHref : undefined}
+              actionLabel={isSelf ? profileSpaceCopy.createdAction : undefined}
               title={t.profile.createdEmptyTitle}
               description={t.profile.createdEmptyDescription}
             />
