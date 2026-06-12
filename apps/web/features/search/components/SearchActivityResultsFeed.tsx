@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { LoaderCircle } from "lucide-react";
 import { ActivityCard } from "@/features/activities/components/ActivityCard";
 import { ActivityCardMasonryGrid } from "@/features/activities/components/ActivityCardMasonryGrid";
@@ -21,6 +22,7 @@ type SearchActivityResultsFeedProps = {
   isAuthenticated: boolean;
   locale: string;
   query: string;
+  renderTitle?: (activity: ActivityCardViewModel) => ReactNode;
   totalCount: number;
 };
 
@@ -91,6 +93,7 @@ export function SearchActivityResultsFeed({
   isAuthenticated,
   locale,
   query,
+  renderTitle,
   totalCount,
 }: SearchActivityResultsFeedProps) {
   const t = getCopy(locale).globalSearch;
@@ -339,6 +342,7 @@ export function SearchActivityResultsFeed({
               showFavoriteButton
               showPrimaryAction={!isPublicEventCard(activity)}
               sourceSurface="global_search"
+              titleContent={renderTitle?.(activity)}
             />
           ))}
         </ActivityCardMasonryGrid>
@@ -367,6 +371,7 @@ export function SearchActivityResultsFeed({
                 showFavoriteButton
                 showPrimaryAction={!isPublicEventCard(activity)}
                 sourceSurface="global_search"
+                titleContent={renderTitle?.(activity)}
               />
             ))}
           </ActivityCardMasonryGrid>

@@ -29,7 +29,7 @@ const activityResultLimit = 6;
 const publicEventResultLimit = 6;
 export const globalSearchMainResultPageSize = 18;
 const merchantResultLimit = 5;
-const userResultLimit = 6;
+const userResultLimit = 12;
 
 export type GlobalSearchMainActivityResultMode = "strict" | "related";
 
@@ -68,6 +68,8 @@ export type GlobalSearchResults = {
   publicEventCount: number;
   merchants: GlobalSearchMerchantViewModel[];
   merchantCount: number;
+  hiddenEndedActivityCount: number;
+  hiddenEndedPublicEventCount: number;
 };
 
 export type GlobalSearchMainActivityResults = {
@@ -172,6 +174,32 @@ function getSearchPublicEventBaseWhere(
         visibility: "PUBLIC",
       }
     : getUpcomingPublicEventWhere(now);
+}
+
+function getEndedPublicEventWhere(now: Date): Prisma.PublicEventWhereInput {
+  return {
+    status: "SCHEDULED",
+    visibility: "PUBLIC",
+    OR: [
+      {
+        endAt: {
+          lte: now,
+        },
+      },
+      {
+        AND: [
+          {
+            endAt: null,
+          },
+          {
+            startAt: {
+              lte: now,
+            },
+          },
+        ],
+      },
+    ],
+  };
 }
 
 function mapPublicEventToSearchActivityCard(
@@ -297,6 +325,8 @@ export async function getGlobalSearchResults(
       publicEventCount: 0,
       merchants: [],
       merchantCount: 0,
+      hiddenEndedActivityCount: 0,
+      hiddenEndedPublicEventCount: 0,
     };
   }
 
@@ -310,16 +340,7 @@ export async function getGlobalSearchResults(
       })
     : activeActivityWhere;
   const endedActivityWhere = getActivityTimeStateWhere("ENDED", now);
-  const activitySearchWhere = {
-    AND: terms.map((term) => ({
-      OR: [
-        { title: { contains: term, mode: "insensitive" as const } },
-        { description: { contains: term, mode: "insensitive" as const } },
-        { city: { contains: term, mode: "insensitive" as const } },
-        { address: { contains: term, mode: "insensitive" as const } },
-      ],
-    })),
-  };
+  const activitySearchWhere = getActivitySearchWhere(terms, "strict");
   const activityWhere = {
     AND: [searchableActivityWhere, activitySearchWhere],
   };
@@ -332,17 +353,18 @@ export async function getGlobalSearchResults(
   const publicEventSearchWhere = {
     AND: [
       getSearchPublicEventBaseWhere(includeEnded, now),
-      {
-        AND: terms.map((term) => ({
-          OR: [
-            { title: { contains: term, mode: "insensitive" as const } },
-            { description: { contains: term, mode: "insensitive" as const } },
-            { city: { contains: term, mode: "insensitive" as const } },
-            { address: { contains: term, mode: "insensitive" as const } },
-          ],
-        })),
-      },
+      getPublicEventSearchWhere(terms, "strict"),
     ],
+  };
+  const hiddenEndedActivityWhere = {
+    AND: [
+      getVisibleActivityWhere({ includeEnded: true, includePast: true, now }),
+      activitySearchWhere,
+      endedActivityWhere,
+    ],
+  };
+  const hiddenEndedPublicEventWhere = {
+    AND: [getEndedPublicEventWhere(now), getPublicEventSearchWhere(terms, "strict")],
   };
   const merchantSearchWhere = {
     isActive: true,
@@ -388,6 +410,8 @@ export async function getGlobalSearchResults(
     publicEvents,
     merchantCount,
     merchants,
+    hiddenEndedActivityCount,
+    hiddenEndedPublicEventCount,
   ] = await Promise.all([
     prisma.userProfile.count({
       where: userSearchWhere,
@@ -443,6 +467,16 @@ export async function getGlobalSearchResults(
         },
       },
     }),
+    includeEnded
+      ? Promise.resolve(0)
+      : prisma.activity.count({
+          where: hiddenEndedActivityWhere,
+        }),
+    includeEnded
+      ? Promise.resolve(0)
+      : prisma.publicEvent.count({
+          where: hiddenEndedPublicEventWhere,
+        }),
   ]);
   const userRelationshipStatuses = await getSearchUserRelationshipStatuses(
     currentUserProfileId,
@@ -486,6 +520,8 @@ export async function getGlobalSearchResults(
       activityCount: merchant._count.activities,
     })),
     merchantCount,
+    hiddenEndedActivityCount,
+    hiddenEndedPublicEventCount,
   };
 }
 
