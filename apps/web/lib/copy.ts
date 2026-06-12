@@ -89,12 +89,31 @@ const copy = {
       loadFailedDescription: "暂时无法搜索，请稍后再试。",
       resultSummary: (count: number, query: string) =>
         `找到 ${count} 个与「${query}」相关的结果。`,
+      relatedOnlySummary: (query: string) =>
+        `没有完全匹配「${query}」的结果，先展示可能相关的活动与组局。`,
       viewMoreActivities: (_shown: number, total: number) =>
         `查看全部 ${total} 个活动`,
       viewMoreMainResults: (_shown: number, total: number) =>
         `查看全部 ${total} 个活动与组局`,
+      loadingMoreMainResults: "正在加载更多",
+      loadingRelatedMainResults: "正在补充相关结果",
+      retryLoadMoreMainResults: "重新加载",
+      scrollForMoreMainResults: (shown: number, total: number) =>
+        `已显示 ${shown}/${total}，继续下滑加载更多`,
+      scrollForMoreRelatedMainResults: (shown: number, total: number) =>
+        `已显示 ${shown}/${total} 个扩展结果，继续下滑加载更多`,
+      allMainResultsLoaded: (count: number) => `已显示全部 ${count} 个结果`,
+      allRelatedMainResultsLoaded: (count: number) =>
+        `已显示 ${count} 个扩展结果`,
+      showEndedResults: "显示已结束",
+      hideEndedResults: "隐藏已结束",
+      endedResultsHiddenHint: "默认只看仍可参与的内容。",
+      endedResultsShownHint: "当前包含已结束内容。",
       activitiesTitle: "正在组局",
       mainResultsTitle: "活动与组局",
+      relatedMainResultsTitle: "相关扩展",
+      relatedMainResultsDescription:
+        "下面是命中部分关键词的活动与组局，适合继续逛逛。",
       publicEventsTitle: "活动",
       merchantsTitle: "商家",
       usersTitle: "好友",
@@ -789,12 +808,32 @@ const copy = {
         "Search is unavailable right now. Try again later.",
       resultSummary: (count: number, query: string) =>
         `${count} result${count === 1 ? "" : "s"} found for "${query}".`,
+      relatedOnlySummary: (query: string) =>
+        `No exact results for "${query}". Showing related activities and crews instead.`,
       viewMoreActivities: (_shown: number, total: number) =>
         `View all ${total} activities`,
       viewMoreMainResults: (_shown: number, total: number) =>
         `View all ${total} activities and crews`,
+      loadingMoreMainResults: "Loading more",
+      loadingRelatedMainResults: "Loading related results",
+      retryLoadMoreMainResults: "Try loading again",
+      scrollForMoreMainResults: (shown: number, total: number) =>
+        `${shown}/${total} shown. Scroll for more.`,
+      scrollForMoreRelatedMainResults: (shown: number, total: number) =>
+        `${shown}/${total} related results shown. Scroll for more.`,
+      allMainResultsLoaded: (count: number) =>
+        `All ${count} results are shown.`,
+      allRelatedMainResultsLoaded: (count: number) =>
+        `${count} related result${count === 1 ? "" : "s"} shown.`,
+      showEndedResults: "Show ended",
+      hideEndedResults: "Hide ended",
+      endedResultsHiddenHint: "Only available items are shown by default.",
+      endedResultsShownHint: "Ended items are currently included.",
       activitiesTitle: "Crews forming",
       mainResultsTitle: "Activities and crews",
+      relatedMainResultsTitle: "Related results",
+      relatedMainResultsDescription:
+        "These match part of your search and may still be worth checking.",
       publicEventsTitle: "Activity info",
       merchantsTitle: "Merchants",
       usersTitle: "Friends",
@@ -1547,12 +1586,33 @@ const copy = {
         "La recherche est indisponible pour le moment. Réessayez plus tard.",
       resultSummary: (count: number, query: string) =>
         `${count} résultat${count > 1 ? "s" : ""} pour « ${query} ».`,
+      relatedOnlySummary: (query: string) =>
+        `Aucun résultat exact pour « ${query} ». Voici des activités et groupes proches.`,
       viewMoreActivities: (_shown: number, total: number) =>
         `Voir les ${total} activités`,
       viewMoreMainResults: (_shown: number, total: number) =>
         `Voir les ${total} activités et groupes`,
+      loadingMoreMainResults: "Chargement",
+      loadingRelatedMainResults: "Chargement des résultats proches",
+      retryLoadMoreMainResults: "Réessayer",
+      scrollForMoreMainResults: (shown: number, total: number) =>
+        `${shown}/${total} affichés. Faites défiler pour charger plus.`,
+      scrollForMoreRelatedMainResults: (shown: number, total: number) =>
+        `${shown}/${total} résultats proches affichés. Faites défiler pour charger plus.`,
+      allMainResultsLoaded: (count: number) =>
+        `${count} résultat${count > 1 ? "s" : ""} affiché${count > 1 ? "s" : ""}.`,
+      allRelatedMainResultsLoaded: (count: number) =>
+        `${count} résultat${count > 1 ? "s" : ""} proche${count > 1 ? "s" : ""} affiché${count > 1 ? "s" : ""}.`,
+      showEndedResults: "Afficher les terminees",
+      hideEndedResults: "Masquer les terminees",
+      endedResultsHiddenHint:
+        "Par defaut, seuls les contenus encore disponibles sont affiches.",
+      endedResultsShownHint: "Les contenus termines sont inclus.",
       activitiesTitle: "Groupes en cours",
       mainResultsTitle: "Activités et groupes",
+      relatedMainResultsTitle: "Résultats proches",
+      relatedMainResultsDescription:
+        "Ces résultats correspondent à une partie de votre recherche.",
       publicEventsTitle: "Activités",
       merchantsTitle: "Partenaires",
       usersTitle: "Amis",

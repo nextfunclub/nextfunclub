@@ -1,21 +1,19 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { headers } from "next/headers";
-import { ArrowRight, MapPin, Search, Store } from "lucide-react";
+import { ArrowRight, Clock3, MapPin, Search, Store } from "lucide-react";
 import { Badge } from "@chill-club/ui";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { ActivityCard } from "@/features/activities/components/ActivityCard";
-import { getActivityCoverTone } from "@/features/activities/queries/getActivities";
-import type { ActivityCardViewModel } from "@/features/activities/types";
-import { isPublicEventCard } from "@/features/activities/utils/activityCardKind";
-import type { PublicEventCardViewModel } from "@/features/public-events/types";
 import { normalizeAnalyticsLocale } from "@/features/analytics/events";
 import { recordOperationLatency } from "@/features/analytics/latency";
 import { GlobalSearchForm } from "@/features/search/components/GlobalSearchForm";
 import { GlobalSearchUserResults } from "@/features/search/components/GlobalSearchUserResults";
+import { SearchActivityResultsFeed } from "@/features/search/components/SearchActivityResultsFeed";
 import { queueAnalyticsEvent } from "@/features/analytics/server";
 import {
+  globalSearchMainResultPageSize,
+  getGlobalSearchMainActivityResults,
   getGlobalSearchResults,
   type GlobalSearchMerchantViewModel,
 } from "@/features/search/queries/getGlobalSearchResults";
@@ -42,48 +40,6 @@ export const dynamic = "force-dynamic";
 
 const userPreviewLimit = 3;
 
-function mapPublicEventToSearchActivityCard(
-  event: PublicEventCardViewModel,
-): ActivityCardViewModel {
-  return {
-    id: event.id,
-    publicEventId: event.id,
-    title: event.title,
-    description: event.description,
-    type: "PUBLIC_EVENT",
-    category: event.category,
-    city: event.city,
-    address: event.address,
-    latitude: event.latitude,
-    longitude: event.longitude,
-    startAt: event.startAt,
-    endAt: event.endAt,
-    capacity: 0,
-    coverImageUrl: event.coverImageUrl,
-    favoriteCount: event.favoriteCount,
-    participantCount: event.teamCount,
-    priceText: event.priceText ?? "",
-    status: "RECRUITING",
-    visibility: "PUBLIC",
-    coverTone: getActivityCoverTone(event.id),
-    isActivityInfo: true,
-    officialUrl: event.officialUrl,
-    merchant: null,
-    friendSignal: null,
-    isFavorited: event.isFavorited,
-  };
-}
-
-function sortSearchActivityCards(
-  left: ActivityCardViewModel,
-  right: ActivityCardViewModel,
-) {
-  const leftTime = new Date(left.startAt).getTime();
-  const rightTime = new Date(right.startAt).getTime();
-
-  return leftTime - rightTime || left.id.localeCompare(right.id);
-}
-
 function SearchSectionHeader({
   count,
   title,
@@ -99,6 +55,40 @@ function SearchSectionHeader({
       <Badge className="shrink-0 bg-white text-zinc-600 ring-1 ring-zinc-200">
         {count}
       </Badge>
+    </div>
+  );
+}
+
+function SearchResultFilterBar({
+  includeEnded,
+  locale,
+  query,
+}: {
+  includeEnded: boolean;
+  locale: string;
+  query: string;
+}) {
+  const t = getCopy(locale).globalSearch;
+  const nextHref = getGlobalSearchHref(locale, query, {
+    includeEnded: !includeEnded,
+  });
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Link
+        href={nextHref}
+        className={
+          includeEnded
+            ? "inline-flex h-9 items-center justify-center gap-2 rounded-full bg-[#f4e7d8] px-3.5 text-sm font-semibold text-[#8f553b] ring-1 ring-[#d9b99c] transition hover:bg-[#f0dcc8]"
+            : "inline-flex h-9 items-center justify-center gap-2 rounded-full bg-white/80 px-3.5 text-sm font-semibold text-zinc-700 ring-1 ring-black/10 transition hover:bg-white"
+        }
+      >
+        <Clock3 className="h-4 w-4" aria-hidden="true" />
+        {includeEnded ? t.hideEndedResults : t.showEndedResults}
+      </Link>
+      <span className="text-xs text-zinc-500">
+        {includeEnded ? t.endedResultsShownHint : t.endedResultsHiddenHint}
+      </span>
     </div>
   );
 }
@@ -172,12 +162,19 @@ export default async function SearchPage({
   });
   const rawSearchParams = (await searchParams) ?? {};
   const rawQuery = getSingleGlobalSearchParam(rawSearchParams, "q");
+  const rawIncludeEnded =
+    getSingleGlobalSearchParam(rawSearchParams, "ended") === "1";
   const query = normalizeGlobalSearchQuery(rawQuery);
 
   if (!isCanonicalGlobalSearchParams(rawSearchParams)) {
-    redirect(getGlobalSearchHref(locale, query));
+    redirect(
+      getGlobalSearchHref(locale, query, {
+        includeEnded: rawIncludeEnded,
+      }),
+    );
   }
 
+  const includeEnded = Boolean(query && rawIncludeEnded);
   const t = getCopy(locale).globalSearch;
   const analyticsLocale = normalizeAnalyticsLocale(locale);
   const viewerProfile = query
@@ -193,10 +190,47 @@ export default async function SearchPage({
     : null;
   const searchResult = query
     ? await perf.measure("search.results", () =>
-        getGlobalSearchResults(query, viewerProfile?.id)
+        getGlobalSearchResults(query, viewerProfile?.id, {
+          includeEnded,
+        })
           .then((result) => ({ result, error: null }))
           .catch((error: unknown) => {
             console.error("Failed to load global search results", error);
+            return { result: null, error };
+          }),
+      )
+    : { result: null, error: null };
+  const mainActivityResult = query
+    ? await perf.measure("search.mainActivityResults", () =>
+        getGlobalSearchMainActivityResults(query, viewerProfile?.id, {
+          includeEnded,
+        })
+          .then((result) => ({ result, error: null }))
+          .catch((error: unknown) => {
+            console.error(
+              "Failed to load global search activity results",
+              error,
+            );
+            return { result: null, error };
+          }),
+      )
+    : { result: null, error: null };
+  const shouldLoadInitialRelatedResults =
+    query &&
+    mainActivityResult.result &&
+    mainActivityResult.result.totalCount <= globalSearchMainResultPageSize;
+  const relatedActivityResult = shouldLoadInitialRelatedResults
+    ? await perf.measure("search.relatedActivityResults", () =>
+        getGlobalSearchMainActivityResults(query, viewerProfile?.id, {
+          includeEnded,
+          mode: "related",
+        })
+          .then((result) => ({ result, error: null }))
+          .catch((error: unknown) => {
+            console.error(
+              "Failed to load related search activity results",
+              error,
+            );
             return { result: null, error };
           }),
       )
@@ -207,24 +241,10 @@ export default async function SearchPage({
       searchResult.result.merchantCount +
       searchResult.result.publicEventCount
     : 0;
-  const hasResults = totalCount > 0;
+  const relatedActivityCount = relatedActivityResult.result?.totalCount ?? 0;
+  const hasResults = totalCount > 0 || relatedActivityCount > 0;
   const userPreview = searchResult.result
     ? searchResult.result.users.slice(0, userPreviewLimit)
-    : [];
-  const activityInfoPublicEventIds = new Set(
-    searchResult.result
-      ? searchResult.result.activities
-          .filter(isPublicEventCard)
-          .map((activity) => activity.publicEventId ?? activity.id)
-      : [],
-  );
-  const mixedActivityResults = searchResult.result
-    ? [
-        ...searchResult.result.activities,
-        ...searchResult.result.publicEvents
-          .filter((event) => !activityInfoPublicEventIds.has(event.id))
-          .map(mapPublicEventToSearchActivityCard),
-      ].sort(sortSearchActivityCards)
     : [];
   const mixedActivityResultCount = searchResult.result
     ? searchResult.result.activityCount + searchResult.result.publicEventCount
@@ -307,6 +327,13 @@ export default async function SearchPage({
         </div>
 
         <GlobalSearchForm locale={locale} defaultQuery={query} variant="page" />
+        {query ? (
+          <SearchResultFilterBar
+            includeEnded={includeEnded}
+            locale={locale}
+            query={query}
+          />
+        ) : null}
       </div>
 
       {searchResult.error ? (
@@ -324,7 +351,9 @@ export default async function SearchPage({
       ) : searchResult.result ? (
         <div className="space-y-8">
           <p className="rounded-lg border border-black/10 bg-white/70 px-4 py-3 text-sm text-zinc-600">
-            {t.resultSummary(totalCount, query)}
+            {totalCount > 0
+              ? t.resultSummary(totalCount, query)
+              : t.relatedOnlySummary(query)}
           </p>
 
           {searchResult.result.userCount > 0 ? (
@@ -356,46 +385,43 @@ export default async function SearchPage({
             </section>
           ) : null}
 
-          {mixedActivityResultCount > 0 ? (
+          {mixedActivityResultCount > 0 || relatedActivityCount > 0 ? (
             <section className="space-y-3">
               <SearchSectionHeader
                 title={t.mainResultsTitle}
-                count={mixedActivityResultCount}
+                count={
+                  mixedActivityResultCount > 0
+                    ? mixedActivityResultCount
+                    : relatedActivityCount
+                }
               />
-              {mixedActivityResults.length > 0 ? (
-                <>
-                  <div className="grid gap-3 min-[380px]:grid-cols-2 md:gap-4 lg:grid-cols-3">
-                    {mixedActivityResults.map((activity) => (
-                      <ActivityCard
-                        key={
-                          isPublicEventCard(activity)
-                            ? `event-${activity.publicEventId ?? activity.id}`
-                            : `crew-${activity.id}`
-                        }
-                        activity={activity}
-                        isAuthenticated={Boolean(viewerProfile)}
-                        locale={locale}
-                        showFavoriteButton
-                        showPrimaryAction={!isPublicEventCard(activity)}
-                        sourceSurface="global_search"
-                      />
-                    ))}
-                  </div>
-                  {mixedActivityResultCount > mixedActivityResults.length ? (
-                    <Link
-                      href={`${withLocale(locale, "/activities")}?${new URLSearchParams({ q: query }).toString()}`}
-                      className="inline-flex h-10 max-w-full items-center gap-2 whitespace-nowrap rounded-md bg-white px-3 text-sm font-medium text-ink ring-1 ring-black/10 transition hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300"
-                    >
-                      <span className="truncate">
-                        {t.viewMoreMainResults(
-                          mixedActivityResults.length,
-                          mixedActivityResultCount,
-                        )}
-                      </span>
-                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                    </Link>
-                  ) : null}
-                </>
+              {mainActivityResult.result &&
+              (mainActivityResult.result.items.length > 0 ||
+                relatedActivityCount > 0) ? (
+                <SearchActivityResultsFeed
+                  initialActivities={mainActivityResult.result.items}
+                  initialHasMore={mainActivityResult.result.hasMore}
+                  initialNextOffset={mainActivityResult.result.nextOffset}
+                  initialRelatedActivities={
+                    relatedActivityResult.result?.items ?? []
+                  }
+                  initialRelatedHasMore={
+                    relatedActivityResult.result?.hasMore ?? false
+                  }
+                  initialRelatedNextOffset={
+                    relatedActivityResult.result?.nextOffset ?? 0
+                  }
+                  initialRelatedTotalCount={relatedActivityCount}
+                  includeEnded={includeEnded}
+                  isAuthenticated={Boolean(viewerProfile)}
+                  locale={locale}
+                  query={query}
+                  totalCount={mainActivityResult.result.totalCount}
+                />
+              ) : mainActivityResult.error ? (
+                <p className="rounded-lg border border-dashed border-zinc-300 bg-white/60 p-4 text-sm text-zinc-500">
+                  {t.loadFailedDescription}
+                </p>
               ) : (
                 <p className="rounded-lg border border-dashed border-zinc-300 bg-white/60 p-4 text-sm text-zinc-500">
                   {t.noMainResults}
