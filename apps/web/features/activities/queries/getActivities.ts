@@ -1693,21 +1693,13 @@ async function getPublicInfoOnlyActivityList(
     publicInfoFilters,
     now,
   );
-  const [activityTotalCount, publicEventTotalCount] = await Promise.all([
-    perf.measure("activity.count", () =>
-      prisma.activity.count({ where: activityWhere }),
-    ),
-    perf.measure("publicEvent.count", () =>
-      prisma.publicEvent.count({ where: publicEventWhere }),
-    ),
-  ]);
-  const totalCount = activityTotalCount + publicEventTotalCount;
-  const totalPages = getActivityTotalPages(totalCount, pageSize);
-  const page = getActivityPage(filters.page, totalPages);
   const useRecommendedSort =
     publicInfoFilters.sort === "recommended" &&
     !hasExplicitActivityListFilters(publicInfoFilters);
-  const readLimit = useRecommendedSort ? undefined : page * pageSize;
+  const requestedPage = Math.max(filters.page, 1);
+  const readLimit = useRecommendedSort
+    ? undefined
+    : requestedPage * pageSize + 1;
   const [activities, publicEvents] = await Promise.all([
     perf.measure("activity.list", () =>
       prisma.activity.findMany({
@@ -1733,8 +1725,8 @@ async function getPublicInfoOnlyActivityList(
     ),
   ]);
   const dailySeed = useRecommendedSort ? getDailyRankingSeed(now) : null;
-  const rankedActivities = await perf.measure("rank.slice", async () =>
-    [
+  const allRankedActivities = await perf.measure("rank.slice", async () => {
+    const ranked = [
       ...filterDuplicateLegacyActivityInfoRows(activities, publicEvents).map(
         getActivityRankedCardViewModel,
       ),
@@ -1744,8 +1736,16 @@ async function getPublicInfoOnlyActivityList(
         dailySeed
           ? compareRecommendedRankedActivities(now, dailySeed, left, right)
           : compareRankedActivities(publicInfoFilters, left, right),
-      )
-      .slice((page - 1) * pageSize, page * pageSize),
+      );
+
+    return ranked;
+  });
+  const totalCount = allRankedActivities.length;
+  const totalPages = getActivityTotalPages(totalCount, pageSize);
+  const page = getActivityPage(requestedPage, totalPages);
+  const rankedActivities = allRankedActivities.slice(
+    (page - 1) * pageSize,
+    page * pageSize,
   );
   const rankedActivitiesWithViewerState = await perf.measure("viewerState", () =>
     attachJoinableActivityStates(rankedActivities, viewerProfileId),
