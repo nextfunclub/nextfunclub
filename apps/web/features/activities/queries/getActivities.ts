@@ -39,8 +39,6 @@ const coverTones: ActivityCardViewModel["coverTone"][] = [
   "sky",
 ];
 const defaultActivityPageSize = 15;
-const publicInfoRecommendedCandidateMultiplier = 6;
-const publicInfoRecommendedMinCandidateLimit = 80;
 const dailyRankingTimeZone = "Europe/Paris";
 const parisTimeZone = "Europe/Paris";
 const dayInMs = 24 * 60 * 60 * 1000;
@@ -1709,39 +1707,11 @@ async function getPublicInfoOnlyActivityList(
   const useRecommendedSort =
     publicInfoFilters.sort === "recommended" &&
     !hasExplicitActivityListFilters(publicInfoFilters);
-  const useFirstPageRecommendedCandidates = useRecommendedSort && page === 1;
-  const candidateLimit = Math.max(
-    pageSize * publicInfoRecommendedCandidateMultiplier,
-    publicInfoRecommendedMinCandidateLimit,
-  );
-  const readLimit = useFirstPageRecommendedCandidates
-    ? candidateLimit
-    : useRecommendedSort
-      ? undefined
-      : page * pageSize;
-  const firstPageActivityWhere = useFirstPageRecommendedCandidates
-    ? {
-        AND: [
-          getVisibleActivityWhere({
-            includeEnded: false,
-            includePast: false,
-            now,
-          }),
-          getLegacyPublicActivityInfoWhere(),
-        ],
-      }
-    : activityWhere;
-  const firstPagePublicEventWhere = useFirstPageRecommendedCandidates
-    ? getVisiblePublicEventWhere({
-        includeEnded: false,
-        includePast: false,
-        now,
-      })
-    : publicEventWhere;
+  const readLimit = useRecommendedSort ? undefined : page * pageSize;
   const [activities, publicEvents] = await Promise.all([
     perf.measure("activity.list", () =>
       prisma.activity.findMany({
-        where: firstPageActivityWhere,
+        where: activityWhere,
         orderBy: getActivityListOrderBy(
           publicInfoFilters,
           publicInfoFilters.timeState,
@@ -1752,7 +1722,7 @@ async function getPublicInfoOnlyActivityList(
     ),
     perf.measure("publicEvent.list", () =>
       prisma.publicEvent.findMany({
-        where: firstPagePublicEventWhere,
+        where: publicEventWhere,
         orderBy: getPublicEventListOrderBy(
           publicInfoFilters,
           publicInfoFilters.timeState,
@@ -1763,7 +1733,7 @@ async function getPublicInfoOnlyActivityList(
     ),
   ]);
   const dailySeed = useRecommendedSort ? getDailyRankingSeed(now) : null;
-  let rankedActivities = await perf.measure("rank.slice", async () =>
+  const rankedActivities = await perf.measure("rank.slice", async () =>
     [
       ...filterDuplicateLegacyActivityInfoRows(activities, publicEvents).map(
         getActivityRankedCardViewModel,
@@ -1777,37 +1747,6 @@ async function getPublicInfoOnlyActivityList(
       )
       .slice((page - 1) * pageSize, page * pageSize),
   );
-  if (
-    useFirstPageRecommendedCandidates &&
-    rankedActivities.length < Math.min(pageSize, totalCount)
-  ) {
-    rankedActivities = await perf.measure("fallback.fullRank", async () => {
-      const [fallbackActivities, fallbackPublicEvents] = await Promise.all([
-        prisma.activity.findMany({
-          where: activityWhere,
-          select: activityCardSelect,
-        }),
-        prisma.publicEvent.findMany({
-          where: publicEventWhere,
-          select: publicEventCardSelect,
-        }),
-      ]);
-
-      return [
-        ...filterDuplicateLegacyActivityInfoRows(
-          fallbackActivities,
-          fallbackPublicEvents,
-        ).map(getActivityRankedCardViewModel),
-        ...fallbackPublicEvents.map(getPublicEventActivityCardViewModel),
-      ]
-        .sort((left, right) =>
-          dailySeed
-            ? compareRecommendedRankedActivities(now, dailySeed, left, right)
-            : compareRankedActivities(publicInfoFilters, left, right),
-        )
-        .slice((page - 1) * pageSize, page * pageSize);
-    });
-  }
   const rankedActivitiesWithViewerState = await perf.measure("viewerState", () =>
     attachJoinableActivityStates(rankedActivities, viewerProfileId),
   );
@@ -1816,7 +1755,7 @@ async function getPublicInfoOnlyActivityList(
     publicEventCandidateCount: publicEvents.length,
     resultCount: rankedActivities.length,
     totalCount,
-    usedFirstPageCandidates: useFirstPageRecommendedCandidates,
+    usedFirstPageCandidates: false,
   });
 
   return {
