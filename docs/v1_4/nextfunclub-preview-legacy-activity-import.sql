@@ -20,6 +20,17 @@ DROP TABLE IF EXISTS legacy_import_guest_participants;
 DROP TABLE IF EXISTS legacy_import_activities;
 DROP TABLE IF EXISTS legacy_import_organizers;
 
+-- Clean the previous run first. These are real team activities, not PublicEvent rows.
+DELETE FROM "GuestActivityParticipant"
+WHERE "sourceUserAgent" = 'legacy-xlsx-import:paris-juin-2026';
+
+DELETE FROM "Activity"
+WHERE "source" = 'legacy-nextfun-xlsx';
+
+DELETE FROM "UserProfile" u
+WHERE u."clerkUserId" LIKE 'legacy-preview-organizer:%'
+  AND NOT EXISTS (SELECT 1 FROM "Activity" a WHERE a."organizerId" = u."id");
+
 CREATE TABLE legacy_import_organizers (
   organizer_key text PRIMARY KEY,
   profile_id text NOT NULL,
@@ -412,11 +423,11 @@ SELECT
   NULL,
   'legacy-nextfun-xlsx',
   NULL,
-  'nextfun-internal-xlsx',
-  a.external_id,
-  a.external_url,
-  a.source_payload,
-  NOW(),
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
   a.status::"ActivityStatus",
   a.visibility::"ActivityVisibility",
   FALSE,
@@ -447,10 +458,13 @@ ON CONFLICT ("id") DO UPDATE SET
   "capacity" = EXCLUDED."capacity",
   "priceType" = EXCLUDED."priceType",
   "priceText" = EXCLUDED."priceText",
+  "source" = EXCLUDED."source",
+  "sourceUrl" = EXCLUDED."sourceUrl",
   "externalSource" = EXCLUDED."externalSource",
   "externalId" = EXCLUDED."externalId",
   "externalUrl" = EXCLUDED."externalUrl",
   "sourcePayload" = EXCLUDED."sourcePayload",
+  "importedAt" = EXCLUDED."importedAt",
   "status" = EXCLUDED."status",
   "visibility" = EXCLUDED."visibility",
   "organizerId" = EXCLUDED."organizerId",
@@ -499,10 +513,85 @@ WHERE NOT EXISTS (
 )
 ON CONFLICT DO NOTHING;
 
--- 4) Summary. Review these counts after execution.
-SELECT 'legacy activities' AS item, COUNT(*) AS count FROM "Activity" WHERE "source" = 'legacy-nextfun-xlsx' AND "externalSource" = 'nextfun-internal-xlsx'
-UNION ALL
-SELECT 'legacy guest participants' AS item, COUNT(*) AS count FROM "GuestActivityParticipant" WHERE "sourceUserAgent" = 'legacy-xlsx-import:paris-juin-2026';
+-- 4) Final summary. Supabase SQL Editor usually displays only the last result set.
+-- Expected:
+-- - legacy activities = 19
+-- - legacy guest participants = 83
+-- - visible to lobby query = 19
+-- - activity public info match = 0
+-- - suspicious public event duplicate = 0
+WITH legacy_activity_summary AS (
+  SELECT
+    COUNT(*) AS legacy_activity_count,
+    COUNT(*) FILTER (
+      WHERE a."visibility" = 'PUBLIC'
+        AND a."type" <> 'PUBLIC_EVENT'
+        AND a."status" IN ('OPEN', 'RECRUITING', 'CONFIRMED', 'ENDED')
+        AND u."status" = 'ACTIVE'
+    ) AS visible_to_lobby_query,
+    COUNT(*) FILTER (
+      WHERE a."publicEventId" IS NULL
+        AND (
+          a."id" ILIKE 'playinparis_%'
+          OR a."id" ILIKE 'sortiraparis_%'
+          OR a."id" ILIKE 'paris-opendata_%'
+          OR a."id" ILIKE 'paris_open_data_%'
+          OR a."id" ILIKE 'feverup_%'
+          OR a."source" ILIKE '%playinparis%'
+          OR a."source" ILIKE '%sortiraparis%'
+          OR a."source" ILIKE '%paris-opendata%'
+          OR a."source" ILIKE '%opendata.paris.fr%'
+          OR a."source" ILIKE '%feverup%'
+          OR a."sourceUrl" ILIKE '%playinparis%'
+          OR a."sourceUrl" ILIKE '%sortiraparis%'
+          OR a."sourceUrl" ILIKE '%paris-opendata%'
+          OR a."sourceUrl" ILIKE '%opendata.paris.fr%'
+          OR a."sourceUrl" ILIKE '%feverup%'
+          OR a."externalUrl" ILIKE '%playinparis%'
+          OR a."externalUrl" ILIKE '%sortiraparis%'
+          OR a."externalUrl" ILIKE '%paris-opendata%'
+          OR a."externalUrl" ILIKE '%opendata.paris.fr%'
+          OR a."externalUrl" ILIKE '%feverup%'
+          OR a."externalSource" IS NOT NULL
+          OR a."externalId" IS NOT NULL
+          OR a."externalUrl" IS NOT NULL
+          OR a."importedAt" IS NOT NULL
+        )
+    ) AS activity_public_info_match
+  FROM "Activity" a
+  LEFT JOIN "UserProfile" u ON u."id" = a."organizerId"
+  WHERE a."source" = 'legacy-nextfun-xlsx'
+),
+legacy_guest_summary AS (
+  SELECT COUNT(*) AS legacy_guest_participant_count
+  FROM "GuestActivityParticipant"
+  WHERE "sourceUserAgent" = 'legacy-xlsx-import:paris-juin-2026'
+),
+suspicious_public_event_summary AS (
+  SELECT COUNT(*) AS suspicious_public_event_duplicate_count
+  FROM "PublicEvent"
+  WHERE "id" LIKE 'legacy_activity_%'
+     OR "id" LIKE 'legacy_%'
+     OR "title" IN (SELECT "title" FROM "Activity" WHERE "source" = 'legacy-nextfun-xlsx')
+)
+SELECT item, count, expected
+FROM (
+  SELECT 1 AS sort_order, 'legacy activities' AS item, legacy_activity_count::bigint AS count, '19' AS expected
+  FROM legacy_activity_summary
+  UNION ALL
+  SELECT 2, 'legacy guest participants', legacy_guest_participant_count::bigint, '83'
+  FROM legacy_guest_summary
+  UNION ALL
+  SELECT 3, 'visible to lobby query', visible_to_lobby_query::bigint, '19'
+  FROM legacy_activity_summary
+  UNION ALL
+  SELECT 4, 'activity public info match', activity_public_info_match::bigint, '0'
+  FROM legacy_activity_summary
+  UNION ALL
+  SELECT 5, 'suspicious public event duplicate', suspicious_public_event_duplicate_count::bigint, '0'
+  FROM suspicious_public_event_summary
+) summary
+ORDER BY sort_order;
 
 DROP TABLE IF EXISTS legacy_import_guest_participants;
 DROP TABLE IF EXISTS legacy_import_activities;
@@ -513,6 +602,6 @@ COMMIT;
 -- Optional rollback, only run manually if you need to remove this import batch:
 -- BEGIN;
 -- DELETE FROM "GuestActivityParticipant" WHERE "sourceUserAgent" = 'legacy-xlsx-import:paris-juin-2026';
--- DELETE FROM "Activity" WHERE "source" = 'legacy-nextfun-xlsx' AND "externalSource" = 'nextfun-internal-xlsx';
+-- DELETE FROM "Activity" WHERE "source" = 'legacy-nextfun-xlsx';
 -- DELETE FROM "UserProfile" u WHERE u."clerkUserId" LIKE 'legacy-preview-organizer:%' AND NOT EXISTS (SELECT 1 FROM "Activity" a WHERE a."organizerId" = u."id");
 -- COMMIT;

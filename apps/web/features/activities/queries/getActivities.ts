@@ -80,6 +80,27 @@ function includesKnownPublicActivitySource(value: string | null | undefined) {
   );
 }
 
+function getNullableStringContainsWhere(
+  field: "source" | "sourceUrl" | "externalUrl",
+  source: string,
+): Prisma.ActivityWhereInput {
+  return {
+    AND: [
+      {
+        [field]: {
+          not: null,
+        },
+      },
+      {
+        [field]: {
+          contains: source,
+          mode: "insensitive",
+        },
+      },
+    ],
+  };
+}
+
 export const activityCardSelect = {
   id: true,
   title: true,
@@ -633,24 +654,9 @@ export function getLegacyPublicActivityInfoWhere(): Prisma.ActivityWhereInput {
             },
           })),
           ...legacyPublicActivitySources.flatMap((source) => [
-            {
-              source: {
-                contains: source,
-                mode: "insensitive" as const,
-              },
-            },
-            {
-              sourceUrl: {
-                contains: source,
-                mode: "insensitive" as const,
-              },
-            },
-            {
-              externalUrl: {
-                contains: source,
-                mode: "insensitive" as const,
-              },
-            },
+            getNullableStringContainsWhere("source", source),
+            getNullableStringContainsWhere("sourceUrl", source),
+            getNullableStringContainsWhere("externalUrl", source),
           ]),
           {
             externalSource: {

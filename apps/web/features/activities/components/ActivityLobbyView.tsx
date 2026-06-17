@@ -422,8 +422,8 @@ function getActivityLobbyPreviewCopy(locale: string) {
       browse: "Activites",
       emptyTitle: "Aucun plan pour le moment",
       emptyDescription:
-        "Les activites et equipes publiques apparaitront ici des qu'elles seront disponibles.",
-      sectionTitle: "A voir maintenant",
+        "Les plans publics apparaitront ici des qu'ils seront disponibles.",
+      sectionTitle: "Plans publics",
     };
   }
 
@@ -436,20 +436,20 @@ function getActivityLobbyPreviewCopy(locale: string) {
       browse: "Activities",
       emptyTitle: "No plans yet",
       emptyDescription:
-        "Public activities and teams will appear here when they are available.",
-      sectionTitle: "Now visible",
+        "Public team plans will appear here when they are available.",
+      sectionTitle: "Public plans",
     };
   }
 
   return {
     eyebrow: "组队大厅",
     title: "先逛逛",
-    description: "公开活动和组局可以直接看。",
+    description: "公开组局可以直接看，登录后可以报名、收藏和管理。",
     signIn: "登录",
     browse: "看活动",
-    emptyTitle: "暂时还没有公开内容",
-    emptyDescription: "有新的活动或组局后，会先显示在这里。",
-    sectionTitle: "正在开放",
+    emptyTitle: "暂时还没有公开组局",
+    emptyDescription: "有新的公开组局后，会先显示在这里。",
+    sectionTitle: "公开组局",
   };
 }
 
