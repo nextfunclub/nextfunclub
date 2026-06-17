@@ -86,6 +86,25 @@ type ActivityDetailPageProps = {
   }>;
 };
 
+const participantAvatarTones = [
+  "bg-[#e98472] text-white",
+  "bg-[#72a7cf] text-white",
+  "bg-[#72b68a] text-white",
+  "bg-[#c795d8] text-white",
+  "bg-[#d8aa64] text-white",
+  "bg-[#7f88d8] text-white",
+];
+
+function getStableParticipantAvatarTone(value: string) {
+  const total = [...value].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+
+  return participantAvatarTones[total % participantAvatarTones.length];
+}
+
+function getParticipantInitial(nickname: string) {
+  return nickname.trim().charAt(0).toUpperCase() || "N";
+}
+
 export const dynamic = "force-dynamic";
 
 export default async function ActivityDetailPage({
@@ -444,6 +463,7 @@ export default async function ActivityDetailPage({
     activity.capacity > 0
       ? `${activity.participantCount}/${activity.capacity} ${t.common.people}`
       : `${activity.participantCount} ${t.common.people}`;
+  const participantPreview = activity.participantPreview ?? [];
   const activityPriceLabel = getActivityPriceLabel(activity, locale);
   const activityVisibilityLabel =
     activity.visibility === "PRIVATE"
@@ -526,17 +546,17 @@ export default async function ActivityDetailPage({
         </div>
       </div>
 
+      <section className="rounded-lg border border-black/10 bg-white/70 p-4 sm:p-5">
+        <h2 className="text-lg font-semibold text-ink">
+          {t.activityDetail.descriptionTitle}
+        </h2>
+        <p className="mt-3 whitespace-pre-line text-sm leading-7 text-zinc-600">
+          {activity.description}
+        </p>
+      </section>
+
       <section className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <article className="min-w-0 space-y-6 lg:order-1">
-          <div className="rounded-lg border border-black/10 bg-white/70 p-4 sm:p-5">
-            <h2 className="text-lg font-semibold text-ink">
-              {t.activityDetail.descriptionTitle}
-            </h2>
-            <p className="mt-3 whitespace-pre-line text-sm leading-7 text-zinc-600">
-              {activity.description}
-            </p>
-          </div>
-
           <div className="rounded-lg border border-black/10 bg-white/70 p-4 sm:p-5">
             <div className="flex items-center gap-2">
               <Route className="h-5 w-5 text-moss" />
@@ -729,7 +749,7 @@ export default async function ActivityDetailPage({
           </div>
         </article>
 
-        <aside className="order-first flex h-fit w-full min-w-0 max-w-full flex-col rounded-[1.25rem] border border-black/10 bg-white/80 p-4 shadow-sm sm:p-5 lg:sticky lg:top-24 lg:order-2">
+        <aside className="order-first flex h-fit w-full min-w-0 max-w-full flex-col lg:sticky lg:top-24 lg:order-2">
           <div className="order-1 rounded-[1.25rem] border border-[#dccba8] bg-[#fff8ec] p-4 shadow-sm">
             <div className="space-y-3">
               <div className="flex items-start justify-between gap-3">
@@ -753,10 +773,42 @@ export default async function ActivityDetailPage({
                   />
                 </div>
               ) : null}
+              {participantPreview.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {participantPreview.map((participant) => (
+                    <button
+                      key={participant.id}
+                      type="button"
+                      className="group relative flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-white text-xs font-semibold shadow-sm outline-none ring-1 ring-[#ead9bd] transition hover:-translate-y-0.5 focus-visible:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-[#d88d72]"
+                      aria-label={participant.nickname}
+                      title={participant.nickname}
+                    >
+                      <span
+                        className={`flex h-full w-full items-center justify-center overflow-hidden rounded-full text-[11px] font-semibold ${getStableParticipantAvatarTone(participant.id)}`}
+                      >
+                        {participant.avatarUrl ? (
+                          // User avatars are stored as remote profile URLs.
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={participant.avatarUrl}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          getParticipantInitial(participant.nickname)
+                        )}
+                      </span>
+                      <span className="pointer-events-none absolute -top-10 left-1/2 z-20 w-max max-w-[12rem] -translate-x-1/2 whitespace-normal rounded-full bg-ink px-2.5 py-1 text-center text-xs font-semibold leading-4 text-white opacity-0 shadow-lg transition group-hover:opacity-100 group-focus:opacity-100 group-focus-visible:opacity-100">
+                        {participant.nickname}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
 
-          <div className="order-2 mt-4 space-y-3 rounded-[1.1rem] border border-sand bg-white/68 p-3 text-sm text-zinc-700 sm:p-4 lg:order-2">
+          <div className="order-2 mt-3 space-y-3 rounded-[1.1rem] border border-sand bg-white/68 p-3 text-sm text-zinc-700 sm:p-4 lg:order-2">
             <p className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2">
               <CalendarDays className="mt-0.5 h-4 w-4 shrink-0" />
               <span className="min-w-0 break-words">{activityDateLabel}</span>
@@ -829,80 +881,83 @@ export default async function ActivityDetailPage({
                   : t.activityDetail.approvalAuto}
               </span>
             </p>
-          </div>
 
-          <div className="order-3 mt-3 grid gap-3 rounded-[1.25rem] border border-[#dccba8] bg-[#fff8ec] p-3 shadow-sm sm:p-4">
-            {isOrganizer ? (
-              <>
-                <OrganizerParticipationToggleForm
-                  activityId={activity.id}
-                  isClosed={isClosed}
-                  isParticipatingByDefault={organizerIsParticipating}
-                  locale={locale}
-                />
-                <div className="grid gap-2 rounded-2xl border border-[#e5d7bf] bg-white/80 p-3">
-                  <p className="flex items-center gap-2 text-sm font-semibold text-ink">
-                    <ShieldAlert className="h-4 w-4 text-moss" />
-                    {t.activityOwner.title}
-                  </p>
-                  {canEditActivity ? (
-                    <Link
-                      className="inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-white px-4 text-sm font-medium text-zinc-950 ring-1 ring-zinc-200 transition hover:bg-zinc-50"
-                      href={withLocale(locale, `/activities/${activity.id}/edit`)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                      {t.activityDetail.editActivity}
-                    </Link>
-                  ) : null}
-                  {!isCancelled && !isEndedByTime ? (
-                    <p className="text-xs leading-5 text-zinc-500">
-                      {t.activityOwner.cancelDescription}
+            <div className="mt-3 border-t border-sand pt-3">
+              {isOrganizer ? (
+                <div className="grid gap-3">
+                  <OrganizerParticipationToggleForm
+                    activityId={activity.id}
+                    isClosed={isClosed}
+                    isParticipatingByDefault={organizerIsParticipating}
+                    locale={locale}
+                  />
+                  <div className="grid gap-2 rounded-2xl border border-[#e5d7bf] bg-white/80 p-3">
+                    <p className="flex items-center gap-2 text-sm font-semibold text-ink">
+                      <ShieldAlert className="h-4 w-4 text-moss" />
+                      {t.activityOwner.title}
                     </p>
-                  ) : null}
-                  <CancelActivityForm
+                    {canEditActivity ? (
+                      <Link
+                        className="inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-white px-4 text-sm font-medium text-zinc-950 ring-1 ring-zinc-200 transition hover:bg-zinc-50"
+                        href={withLocale(
+                          locale,
+                          `/activities/${activity.id}/edit`,
+                        )}
+                      >
+                        <Pencil className="h-4 w-4" />
+                        {t.activityDetail.editActivity}
+                      </Link>
+                    ) : null}
+                    {!isCancelled && !isEndedByTime ? (
+                      <p className="text-xs leading-5 text-zinc-500">
+                        {t.activityOwner.cancelDescription}
+                      </p>
+                    ) : null}
+                    <CancelActivityForm
+                      activityId={activity.id}
+                      activityTitle={activity.title}
+                      disabled={isCancelled || isEndedByTime}
+                      locale={locale}
+                    />
+                    {isCancelled ? (
+                      <p className="text-xs leading-5 text-zinc-500">
+                        {t.activityOwner.cancelledHint}
+                      </p>
+                    ) : isEndedByTime ? (
+                      <p className="text-xs leading-5 text-zinc-500">
+                        {t.activityOwner.endedHint}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              ) : (
+                <div className="grid gap-3">
+                  <JoinActivityForm
                     activityId={activity.id}
                     activityTitle={activity.title}
-                    disabled={isCancelled || isEndedByTime}
+                    accessToken={accessToken ?? null}
+                    compactUnauthenticated
                     locale={locale}
+                    requiresApproval={activity.requiresApproval}
+                    isFull={isFull}
+                    isClosed={isClosed}
+                    isOrganizer={isOrganizer}
+                    isAuthenticated={Boolean(viewerProfile)}
+                    viewerParticipationStatus={
+                      viewerParticipation?.status ?? null
+                    }
                   />
-                  {isCancelled ? (
-                    <p className="text-xs leading-5 text-zinc-500">
-                      {t.activityOwner.cancelledHint}
-                    </p>
-                  ) : isEndedByTime ? (
-                    <p className="text-xs leading-5 text-zinc-500">
-                      {t.activityOwner.endedHint}
-                    </p>
+                  {canContactOrganizer ? (
+                    <ContactOrganizerForm
+                      activityId={activity.id}
+                      locale={locale}
+                      organizerNickname={activity.organizer.nickname}
+                      organizerProfileId={activity.organizer.id}
+                    />
                   ) : null}
                 </div>
-              </>
-            ) : (
-              <>
-                <JoinActivityForm
-                  activityId={activity.id}
-                  activityTitle={activity.title}
-                  accessToken={accessToken ?? null}
-                  compactUnauthenticated
-                  locale={locale}
-                  requiresApproval={activity.requiresApproval}
-                  isFull={isFull}
-                  isClosed={isClosed}
-                  isOrganizer={isOrganizer}
-                  isAuthenticated={Boolean(viewerProfile)}
-                  viewerParticipationStatus={
-                    viewerParticipation?.status ?? null
-                  }
-                />
-                {canContactOrganizer ? (
-                  <ContactOrganizerForm
-                    activityId={activity.id}
-                    locale={locale}
-                    organizerNickname={activity.organizer.nickname}
-                    organizerProfileId={activity.organizer.id}
-                  />
-                ) : null}
-              </>
-            )}
+              )}
+            </div>
           </div>
 
           <div className="order-4 mt-4 space-y-4 text-sm text-zinc-700 lg:mt-5">

@@ -60,6 +60,7 @@ export type ActivityMerchantViewModel = {
 export type ActivityOrganizerViewModel = {
   id: string;
   nickname: string;
+  avatarUrl: string | null;
   bio: string | null;
   followerCount: number;
   followingCount: number;
