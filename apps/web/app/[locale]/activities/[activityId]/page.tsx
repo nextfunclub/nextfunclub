@@ -67,6 +67,7 @@ import { DetailSourceReturnLink } from "@/features/navigation/components/DetailS
 import { DetailSourceRestore } from "@/features/navigation/components/DetailSourceRestore";
 import { openActivityOrganizerConversationAction } from "@/features/direct-messages/actions/directMessageActions";
 import { getPublicEventCopy } from "@/features/public-events/copy";
+import { getTicketCtaLabel } from "@/features/public-events/utils/ticketCta";
 import { ReportDialog } from "@/features/reports/components/ReportDialog";
 import { getOptionalCurrentUserProfileSnapshot } from "@/lib/auth";
 import { getCategoryLabel, getCopy, getTypeLabel } from "@/lib/copy";
@@ -104,24 +105,6 @@ function getStableParticipantAvatarTone(value: string) {
 
 function getParticipantInitial(nickname: string) {
   return nickname.trim().charAt(0).toUpperCase() || "N";
-}
-
-function getTicketCtaLabel(locale: string, label?: string | null) {
-  const normalizedLabel = label?.trim();
-
-  if (normalizedLabel) {
-    return normalizedLabel;
-  }
-
-  if (locale === "fr") {
-    return "Réserver";
-  }
-
-  if (locale === "en") {
-    return "Get tickets";
-  }
-
-  return "立即抢票";
 }
 
 export const dynamic = "force-dynamic";
@@ -304,6 +287,7 @@ export default async function ActivityDetailPage({
                 copySuccessLabel={t.activityShare.copied}
                 entityId={detailAnalyticsEntity.entityId}
                 entityType={detailAnalyticsEntity.entityType}
+                locale={locale}
                 sourceSurface="public_event_detail"
                 text={activity.description}
               />
@@ -398,7 +382,7 @@ export default async function ActivityDetailPage({
             <div className="mt-6 grid gap-3">
               {canOpenTicketLink && activity.ticketUrl ? (
                 <AnalyticsExternalLink
-                  className="inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-[#d88d72] px-4 text-sm font-semibold text-white transition hover:bg-[#c87b61]"
+                  className="inline-flex h-11 min-w-0 max-w-full items-center justify-center gap-2 rounded-full bg-[#d88d72] px-4 text-sm font-semibold text-white transition hover:bg-[#c87b61]"
                   event={{
                     name: "ticket_link_clicked",
                     entityId: detailAnalyticsEntity.entityId,
@@ -410,7 +394,7 @@ export default async function ActivityDetailPage({
                   }}
                   href={activity.ticketUrl}
                 >
-                  {ticketCtaLabel}
+                  <span className="min-w-0 truncate">{ticketCtaLabel}</span>
                   <ExternalLink className="h-4 w-4" />
                 </AnalyticsExternalLink>
               ) : null}
@@ -611,6 +595,7 @@ export default async function ActivityDetailPage({
               copySuccessLabel={t.activityShare.copied}
               entityId={detailAnalyticsEntity.entityId}
               entityType={detailAnalyticsEntity.entityType}
+              locale={locale}
               sourceSurface="activity_detail"
               text={activity.description}
             />
@@ -943,7 +928,7 @@ export default async function ActivityDetailPage({
 
             {canOpenTicketLink && ticketUrl ? (
               <AnalyticsExternalLink
-                className="inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-[#d88d72] px-4 text-sm font-semibold text-white transition hover:bg-[#c87b61]"
+                className="inline-flex h-11 w-full min-w-0 items-center justify-center gap-2 rounded-full bg-[#d88d72] px-4 text-sm font-semibold text-white transition hover:bg-[#c87b61]"
                 event={{
                   name: "ticket_link_clicked",
                   entityId: detailAnalyticsEntity.entityId,
@@ -955,7 +940,7 @@ export default async function ActivityDetailPage({
                 }}
                 href={ticketUrl}
               >
-                {ticketLabel}
+                <span className="min-w-0 truncate">{ticketLabel}</span>
                 <ExternalLink className="h-4 w-4" />
               </AnalyticsExternalLink>
             ) : null}

@@ -290,3 +290,41 @@ feature/activity-ticket-link-cta
 - 从活动创建的组队详情页能直接进入对应公共活动详情页
 - 活动介绍中的官方链接或其他 URL 不需要用户手动选中文本复制
 - `npm run typecheck` 通过
+
+### 10. 旧活动订票链接回填
+
+建议分支：
+
+```text
+feature/backfill-ticket-links
+```
+
+目标：
+
+对已经入库的 Open Data 活动进行一次性回填，把历史 `sourcePayload` 里的订票或预约链接补到新增的结构化字段里，避免只有后续导入的新活动才有“立即抢票”。
+
+小功能：
+
+- [ ] 新增一次性回填脚本，默认 dry-run，只输出会更新的数量和样例
+- [ ] 支持 `--write` 或明确参数后才真实写库
+- [ ] 优先回填 `PublicEvent.ticketUrl` / `PublicEvent.ticketLabel`
+- [ ] 如仍存在旧 `Activity` 形式的 Open Data 活动，再回填 `Activity.ticketUrl` / `Activity.ticketLabel`
+- [ ] 从 `sourcePayload.access_link` 读取订票或预约链接
+- [ ] 从 `sourcePayload.access_link_text` 读取按钮文案，但需要复用订票文案过滤规则
+- [ ] 回填后输出 created / updated / skipped / invalidUrl 等统计
+
+注意事项：
+
+- 只处理 `source` 属于 `paris-opendata` / `paris-opendata:que-faire-a-paris` 的历史数据
+- 只补 `ticketUrl` 为空的记录，不能覆盖人工编辑过的订票链接
+- `access_link` 必须是有效 `http` 或 `https` URL，其他值跳过
+- `access_link_text` 如果是 URL、过长、或通用法语文案如 `Réservation`，不要写入 `ticketLabel`
+- 回填前先在 preview 数据库 dry-run，并保留样例 title / id / ticketUrl 供人工确认
+- 生产环境执行前需要确认数据库备份或可回滚方案
+
+验收标准：
+
+- dry-run 能明确显示将回填多少条、跳过多少条、无效链接多少条
+- `--write` 执行后，历史 Open Data 活动详情页能出现“立即抢票”
+- 人工配置过订票链接的活动不会被覆盖
+- 回填脚本可重复执行，重复执行不会产生额外副作用

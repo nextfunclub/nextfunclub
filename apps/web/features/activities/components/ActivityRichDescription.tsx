@@ -14,6 +14,7 @@ type ActivityRichDescriptionProps = {
   copySuccessLabel: string;
   entityId: string;
   entityType: AnalyticsEntityType;
+  locale: string;
   sourceSurface: AnalyticsSourceSurface;
   text: string;
 };
@@ -31,6 +32,26 @@ type DescriptionPart =
 
 const urlPattern = /https?:\/\/[^\s<>"']+/g;
 const trailingUrlPunctuationPattern = /[.,;:!?，。；：！？、)\]}）】]+$/;
+const officialLinkLabelPattern =
+  /(官方链接|Official link|Official page|Lien officiel|Page officielle)\s*[：:]?\s*/gi;
+
+function getOfficialLinkLabel(locale: string) {
+  if (locale === "fr") {
+    return "Lien officiel";
+  }
+
+  if (locale === "en") {
+    return "Official link";
+  }
+
+  return "官方链接";
+}
+
+export function localizeDescriptionText(value: string, locale: string) {
+  const officialLinkLabel = getOfficialLinkLabel(locale);
+
+  return value.replace(officialLinkLabelPattern, `${officialLinkLabel}: `);
+}
 
 function splitDescriptionText(text: string): DescriptionPart[] {
   const parts: DescriptionPart[] = [];
@@ -76,10 +97,11 @@ export function ActivityRichDescription({
   copySuccessLabel,
   entityId,
   entityType,
+  locale,
   sourceSurface,
   text,
 }: ActivityRichDescriptionProps) {
-  const parts = splitDescriptionText(text);
+  const parts = splitDescriptionText(localizeDescriptionText(text, locale));
 
   return (
     <p className={className}>

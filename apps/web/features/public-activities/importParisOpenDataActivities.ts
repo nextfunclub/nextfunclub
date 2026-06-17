@@ -1,5 +1,6 @@
 import type { ActivityCategory, PriceType, Prisma } from "@prisma/client";
 import { MAX_ACTIVITY_DESCRIPTION_LENGTH } from "@/features/activities/schemas/activitySchema";
+import { isUsableTicketLabel } from "@/features/public-events/utils/ticketCta";
 import { prisma } from "@/lib/prisma";
 
 const parisOpenDataDataset = "que-faire-a-paris-";
@@ -399,7 +400,7 @@ function normalizeExternalUrl(value: string | null | undefined) {
 function getTicketLabel(record: ParisOpenDataRecord) {
   const accessLabel = normalizeText(record.access_link_text);
 
-  return accessLabel || null;
+  return isUsableTicketLabel(accessLabel) ? accessLabel : null;
 }
 
 function toJsonValue(value: unknown): Prisma.InputJsonValue {

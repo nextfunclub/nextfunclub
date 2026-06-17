@@ -23,6 +23,7 @@ import { getOptionalCurrentUserProfileSnapshot } from "@/lib/auth";
 import { createPerformanceTracker } from "@/lib/performance";
 import { withLocale } from "@/lib/routes";
 import { getPublicEventCopy } from "@/features/public-events/copy";
+import { getTicketCtaLabel } from "@/features/public-events/utils/ticketCta";
 import { ReportDialog } from "@/features/reports/components/ReportDialog";
 import {
   getEventDateLabel,
@@ -42,24 +43,6 @@ type PublicEventDetailPageProps = {
     publicEventId: string;
   }>;
 };
-
-function getTicketCtaLabel(locale: string, label?: string | null) {
-  const normalizedLabel = label?.trim();
-
-  if (normalizedLabel) {
-    return normalizedLabel;
-  }
-
-  if (locale === "fr") {
-    return "Réserver";
-  }
-
-  if (locale === "en") {
-    return "Get tickets";
-  }
-
-  return "立即抢票";
-}
 
 export const dynamic = "force-dynamic";
 
@@ -217,6 +200,7 @@ export default async function PublicEventDetailPage({
               copySuccessLabel={appCopy.activityShare.copied}
               entityId={publicEvent.id}
               entityType="public_event"
+              locale={locale}
               sourceSurface="public_event_detail"
               text={publicEvent.description}
             />
@@ -389,7 +373,7 @@ export default async function PublicEventDetailPage({
           </div>
           {canOpenTicketLink && publicEvent.ticketUrl ? (
             <AnalyticsExternalLink
-              className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-[#d88d72] px-4 text-sm font-semibold text-white transition hover:bg-[#c87b61]"
+              className="mt-5 inline-flex h-11 w-full min-w-0 items-center justify-center gap-2 rounded-full bg-[#d88d72] px-4 text-sm font-semibold text-white transition hover:bg-[#c87b61]"
               event={{
                 name: "ticket_link_clicked",
                 entityId: publicEvent.id,
@@ -402,7 +386,7 @@ export default async function PublicEventDetailPage({
               }}
               href={publicEvent.ticketUrl}
             >
-              {ticketCtaLabel}
+              <span className="min-w-0 truncate">{ticketCtaLabel}</span>
               <Ticket className="h-4 w-4" />
             </AnalyticsExternalLink>
           ) : null}
