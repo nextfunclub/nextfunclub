@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getTicketCtaLabel, isUsableTicketLabel } from "./ticketCta";
+import {
+  getStoredTicketLabel,
+  getTicketCtaLabel,
+  isUsableTicketLabel,
+} from "./ticketCta";
 
 test("getTicketCtaLabel localizes generic Open Data labels", () => {
   assert.equal(getTicketCtaLabel("zh-CN", "Réservation"), "立即抢票");
@@ -24,4 +28,11 @@ test("getTicketCtaLabel rejects URL-like labels", () => {
 
 test("getTicketCtaLabel keeps specific custom labels", () => {
   assert.equal(getTicketCtaLabel("zh-CN", "学生票"), "学生票");
+});
+
+test("getStoredTicketLabel stores only specific labels", () => {
+  assert.equal(getStoredTicketLabel("Réservation"), null);
+  assert.equal(getStoredTicketLabel("En savoir plus"), null);
+  assert.equal(getStoredTicketLabel("https://example.com/tickets"), null);
+  assert.equal(getStoredTicketLabel("学生票"), "学生票");
 });

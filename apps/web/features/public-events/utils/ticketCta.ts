@@ -96,6 +96,16 @@ function getGenericTicketLabelKind(label: string) {
   return null;
 }
 
+export function getStoredTicketLabel(label: string | null | undefined) {
+  const normalizedLabel = label?.trim();
+
+  if (!normalizedLabel || !isUsableTicketLabel(normalizedLabel)) {
+    return null;
+  }
+
+  return getGenericTicketLabelKind(normalizedLabel) ? null : normalizedLabel;
+}
+
 export function getTicketCtaLabel(locale: string, label?: string | null) {
   const normalizedLabel = label?.trim();
 
