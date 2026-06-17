@@ -43,11 +43,32 @@ const activityDetailSelect = {
     select: {
       id: true,
       nickname: true,
+      avatarUrl: true,
       bio: true,
       _count: {
         select: {
           followers: true,
           following: true,
+        },
+      },
+    },
+  },
+  participants: {
+    where: {
+      status: {
+        in: countedDetailParticipationStatuses,
+      },
+    },
+    orderBy: {
+      joinedAt: "asc",
+    },
+    select: {
+      id: true,
+      userProfile: {
+        select: {
+          id: true,
+          nickname: true,
+          avatarUrl: true,
         },
       },
     },
@@ -113,6 +134,13 @@ function getActivityDetailViewModel(
     organizerId: activity.organizerId,
     shareEnabled: activity.shareEnabled,
     shareToken: activity.shareToken,
+    participantPreview: isActivityInfo
+      ? []
+      : (activity.participants ?? []).map((participant) => ({
+          id: participant.userProfile.id,
+          nickname: participant.userProfile.nickname,
+          avatarUrl: participant.userProfile.avatarUrl,
+        })),
     merchant: activity.merchant
       ? {
           id: activity.merchant.id,
@@ -125,6 +153,7 @@ function getActivityDetailViewModel(
     organizer: {
       id: activity.organizer.id,
       nickname: activity.organizer.nickname,
+      avatarUrl: activity.organizer.avatarUrl,
       bio: activity.organizer.bio,
       followerCount: activity.organizer._count.followers,
       followingCount: activity.organizer._count.following,
@@ -223,6 +252,14 @@ export async function getActivityById(
     return {
       ...activityViewModel,
       participantCount: activityViewModel.participantCount + 1,
+      participantPreview: [
+        {
+          id: activityViewModel.organizer.id,
+          nickname: activityViewModel.organizer.nickname,
+          avatarUrl: activityViewModel.organizer.avatarUrl,
+        },
+        ...(activityViewModel.participantPreview ?? []),
+      ],
     };
   }
 

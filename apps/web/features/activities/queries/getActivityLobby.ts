@@ -24,6 +24,7 @@ import type { Prisma } from "@prisma/client";
 const activityLobbySectionLimit = 6;
 const activityLobbyFeedLimit = 48;
 const activityLobbyArchivedFeedLimit = 12;
+const activityLobbyStarterLimit = 8;
 const visibleLobbyParticipationStatuses = ["JOINED", "APPROVED", "PENDING"] as const;
 export const OPEN_LOBBY_ACTIVITIES_TAG = "open-lobby-activities";
 
@@ -93,6 +94,7 @@ export type ActivityLobbyViewModel = {
   favoriteActivities: ActivityCardViewModel[];
   friendHostedActivities: ActivityCardViewModel[];
   friendJoinedActivities: ActivityCardViewModel[];
+  starterActivities: ActivityCardViewModel[];
 };
 
 type ActivityLobbyQueryContext = {
@@ -692,6 +694,12 @@ export async function getActivityLobbyInitial(
     viewerProfileId,
     context.friendIds,
   );
+  const shouldOfferStarterActivities =
+    (createdActivities.length === 0 && joinedActivities.length === 0) ||
+    priorityFeedActivities.length < 3;
+  const starterActivityCards = shouldOfferStarterActivities
+    ? decoratedOpenActivities.slice(0, activityLobbyStarterLimit)
+    : [];
 
   return {
     allActivities: decoratedAllActivities,
@@ -701,6 +709,7 @@ export async function getActivityLobbyInitial(
     favoriteActivities: [],
     friendHostedActivities: [],
     friendJoinedActivities: [],
+    starterActivities: starterActivityCards,
   };
 }
 
@@ -754,6 +763,7 @@ export async function getActivityLobby(
     favoriteActivities,
     friendHostedActivities,
     friendJoinedActivities,
+    starterActivities: initialLobby.starterActivities,
   };
 }
 

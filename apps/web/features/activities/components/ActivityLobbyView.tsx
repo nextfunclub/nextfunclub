@@ -25,6 +25,7 @@ type ActivityLobbyViewProps = {
   favoriteActivities: ActivityCardViewModel[];
   friendHostedActivities: ActivityCardViewModel[];
   friendJoinedActivities: ActivityCardViewModel[];
+  starterActivities: ActivityCardViewModel[];
   locale: string;
 };
 
@@ -160,6 +161,30 @@ function getEmptyCategoryCopy(locale: string) {
     title: "这里暂时还没有内容。",
     description: "可以切换看看其他分类，先组个局，或者去发现新的活动。",
   };
+}
+
+function getEmptyCategoryResetLabel(locale: string) {
+  if (locale === "fr") {
+    return "Voir tout";
+  }
+
+  if (locale === "en") {
+    return "View all";
+  }
+
+  return "查看全部";
+}
+
+function getMoreActivitiesLabel(locale: string) {
+  if (locale === "fr") {
+    return "Plus";
+  }
+
+  if (locale === "en") {
+    return "More";
+  }
+
+  return "更多";
 }
 
 function getEmptyLobbyActions(locale: string): EmptyLobbyAction[] {
@@ -657,6 +682,7 @@ export function ActivityLobbyView({
   favoriteActivities,
   friendHostedActivities,
   friendJoinedActivities,
+  starterActivities,
   locale,
 }: ActivityLobbyViewProps) {
   const t = getCopy(locale).activityLobby;
@@ -812,6 +838,20 @@ export function ActivityLobbyView({
       ),
     [activeCategoryActivities, activeStatusFilter],
   );
+  const visibleActivityKeys = useMemo(
+    () =>
+      new Set(
+        visibleActivities.map((activity) => getLobbyActivityKey(activity)),
+      ),
+    [visibleActivities],
+  );
+  const starterPanelActivities = useMemo(
+    () =>
+      starterActivities
+        .filter((activity) => !visibleActivityKeys.has(getLobbyActivityKey(activity)))
+        .slice(0, 4),
+    [starterActivities, visibleActivityKeys],
+  );
   const totalPages = getLobbyTotalPages(visibleActivities.length);
   const visiblePageActivities = useMemo(
     () => getPagedLobbyActivities(visibleActivities, page),
@@ -823,12 +863,26 @@ export function ActivityLobbyView({
     label: group.label,
   }));
   const hasActivities = allActivities.length > 0;
+  const hasPersonalLobbyData =
+    createdActivities.length > 0 ||
+    joinedActivities.length > 0 ||
+    favoriteActivities.length > 0 ||
+    friendHostedActivities.length > 0 ||
+    friendJoinedActivities.length > 0;
+  const isDefaultLobbyView =
+    activeFilter === "all" && activeStatusFilter === "all";
+  const shouldShowStarterPanel =
+    isDefaultLobbyView &&
+    starterPanelActivities.length > 0 &&
+    (!hasPersonalLobbyData || allActivities.length < 3);
   const activeCategoryDeferred =
     categoryGroups.find((group) => group.id === activeFilter)?.isDeferred ?? false;
   const activeFilterFailed = Boolean(failedFilters[activeFilter]);
   const activeFilterLoading =
     !activeFilterFailed && (loadingFilter === activeFilter || activeCategoryDeferred);
   const emptyCategoryCopy = getEmptyCategoryCopy(locale);
+  const emptyCategoryResetLabel = getEmptyCategoryResetLabel(locale);
+  const moreActivitiesLabel = getMoreActivitiesLabel(locale);
   const emptyLobbyActions = getEmptyLobbyActions(locale);
   const normalizedEmptyLobbyActions =
     locale === "zh-CN"
@@ -1040,23 +1094,38 @@ export function ActivityLobbyView({
             }));
           }}
         />
-      ) : !hasActivities ? (
-        <section className="rounded-[1.75rem] border border-[#dfceb0] bg-[linear-gradient(145deg,rgba(255,252,247,0.98),rgba(246,237,222,0.94))] p-5 shadow-[0_12px_30px_rgba(94,80,52,0.06)] sm:p-6">
+      ) : !hasActivities && isDefaultLobbyView ? (
+        <section className="rounded-[1.5rem] border border-[#dfceb0] bg-[linear-gradient(145deg,rgba(255,252,247,0.98),rgba(246,237,222,0.94))] p-4 shadow-[0_12px_30px_rgba(94,80,52,0.06)] sm:p-6">
           <div className="max-w-2xl">
-            <h2 className="text-2xl font-semibold text-ink sm:text-3xl">
-              {t.emptyTitle}
+            <p className="text-sm font-semibold text-[#8a5d3f]">
+              {locale === "fr"
+                ? "Point de depart"
+                : locale === "en"
+                  ? "Start here"
+                  : "从这里开始"}
+            </p>
+            <h2 className="mt-1 text-2xl font-semibold text-ink sm:text-3xl">
+              {locale === "fr"
+                ? "Trouvez une sortie a partager"
+                : locale === "en"
+                  ? "Find something to do together"
+                  : "今天想找谁一起出门？"}
             </h2>
             <p className="mt-3 text-sm leading-7 text-zinc-600 sm:text-base">
-              {t.emptyDescription}
+              {locale === "fr"
+                ? "Votre hall se remplira avec vos plans, mais vous pouvez deja partir d'une sortie ouverte ou lancer votre premier groupe."
+                : locale === "en"
+                  ? "Your own lobby will grow with your plans. For now, start from an open activity or create your first crew."
+                  : "你的个人组队动态会慢慢长出来。现在可以先从公开活动找人一起去，或者发起第一个局。"}
             </p>
           </div>
 
-          <div className="mt-5 grid gap-3 lg:grid-cols-3">
+          <div className="mt-5 grid gap-2 sm:grid-cols-3">
             {normalizedEmptyLobbyActions.map((action) => (
               <div
                 key={action.href}
                 className={cn(
-                  "rounded-[1.25rem] border p-4 text-left shadow-sm shadow-black/5",
+                  "rounded-xl border p-3 text-left shadow-sm shadow-black/5",
                   action.tone === "primary"
                     ? "border-[#d8c39f] bg-[linear-gradient(145deg,rgba(242,229,206,0.98),rgba(230,213,185,0.95))]"
                     : action.tone === "secondary"
@@ -1067,13 +1136,13 @@ export function ActivityLobbyView({
                 <p className="text-base font-semibold text-ink">
                   {action.label}
                 </p>
-                <p className="mt-1.5 text-sm leading-6 text-zinc-600">
+                <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-zinc-600 sm:text-sm sm:leading-6">
                   {action.description}
                 </p>
                 <Link
                   href={withLocale(locale, action.href)}
                   className={cn(
-                    "mt-3 inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold transition",
+                    "mt-3 inline-flex h-8 items-center rounded-full px-3 text-xs font-semibold transition sm:h-9 sm:px-4 sm:text-sm",
                     action.tone === "primary"
                       ? "bg-coral text-white hover:bg-coral-dark"
                       : action.tone === "secondary"
@@ -1086,6 +1155,53 @@ export function ActivityLobbyView({
               </div>
             ))}
           </div>
+
+          {starterActivities.length > 0 ? (
+            <div className="mt-6 space-y-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-ink">
+                    {locale === "fr"
+                      ? "Des occasions pour commencer"
+                      : locale === "en"
+                        ? "Good first chances"
+                        : "适合先组起来的机会"}
+                  </h3>
+                  <p className="mt-0.5 text-xs leading-5 text-zinc-500 sm:text-sm">
+                    {locale === "fr"
+                      ? "Ces sorties ouvertes peuvent devenir votre premier plan."
+                      : locale === "en"
+                        ? "Open activities that can become your first crew."
+                        : "这些公开活动可以直接变成你的第一个组局。"}
+                  </p>
+                </div>
+                <Link
+                  href={withLocale(locale, "/activities")}
+                  className="inline-flex h-9 w-fit items-center rounded-full border border-sand bg-white/80 px-4 text-sm font-semibold text-[#705f4d] transition hover:bg-white"
+                >
+                  {moreActivitiesLabel}
+                </Link>
+              </div>
+              <div className="grid gap-3 min-[380px]:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+                {starterActivities.slice(0, 4).map((activity) => (
+                  <ActivityCard
+                    key={`starter:${getLobbyActivityKey(activity)}`}
+                    actionContext="lobby"
+                    activity={activity}
+                    favoriteRedirectPath="/lobby"
+                    isAuthenticated
+                    locale={locale}
+                    mobileDense
+                    showFavoriteButton
+                    showPrimaryAction
+                    sourceSurface="activity_list"
+                    detailSourceKey="lobby"
+                    detailSourceState={{ starter: true }}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
         </section>
       ) : visibleActivities.length === 0 ? (
         <div className="rounded-[1.25rem] border border-dashed border-[#dccfb1] bg-[rgba(255,250,241,0.8)] px-4 py-5">
@@ -1095,61 +1211,127 @@ export function ActivityLobbyView({
           <p className="mt-1.5 text-sm leading-6 text-zinc-500">
             {emptyCategoryCopy.description}
           </p>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveFilter("all");
+              setActiveStatusFilter("all");
+            }}
+            className="mt-3 inline-flex h-9 items-center rounded-full border border-sand bg-white/86 px-4 text-sm font-semibold text-[#705f4d] transition hover:border-sand-strong hover:bg-white"
+          >
+            {emptyCategoryResetLabel}
+          </button>
         </div>
       ) : (
-        <section
-          id="lobby-results"
-          className="space-y-3 border-t border-sand pt-4 sm:space-y-4"
-        >
-          <div className="flex items-center justify-between gap-3 px-1">
-            <div className="min-w-0">
-              <div className="flex min-w-0 items-center gap-2">
-                <h2 className="truncate text-lg font-semibold text-ink sm:text-xl">
-                  {activeCategoryLabel}
-                </h2>
-                <span className="shrink-0 rounded-full bg-white/78 px-2.5 py-1 text-xs font-semibold text-[#8a7455] ring-1 ring-sand">
-                  {visibleActivities.length}
-                </span>
+        <>
+          {shouldShowStarterPanel ? (
+            <section className="space-y-3 rounded-[1.25rem] border border-[#dfceb0] bg-white/72 p-4 shadow-sm shadow-black/5 sm:p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8a7455]">
+                    {locale === "fr"
+                      ? "Pour remplir votre hall"
+                      : locale === "en"
+                        ? "Build your lobby"
+                        : "把大厅热起来"}
+                  </p>
+                  <h2 className="mt-1 text-lg font-semibold text-ink sm:text-xl">
+                    {locale === "fr"
+                      ? "Transformez une sortie ouverte en plan"
+                      : locale === "en"
+                        ? "Turn an open activity into a crew"
+                        : "从一个公开活动开始组队"}
+                  </h2>
+                  <p className="mt-1 text-sm leading-6 text-zinc-600">
+                    {locale === "fr"
+                      ? "Votre reseau est encore leger. Ces sorties donnent tout de suite une raison de contacter quelqu'un."
+                      : locale === "en"
+                        ? "Your network is still light. These activities give you a concrete reason to start."
+                    : "好友和记录还少时，先用这些真实活动作为组队种子。"}
+                  </p>
+                </div>
+                <Link
+                  href={withLocale(locale, "/activities")}
+                  className="inline-flex h-9 w-fit shrink-0 items-center rounded-full border border-sand bg-white/80 px-4 text-sm font-semibold text-[#705f4d] transition hover:bg-white"
+                >
+                  {moreActivitiesLabel}
+                </Link>
               </div>
-              <p className="mt-0.5 text-xs text-zinc-500">
-                {getStatusFilterLabel(locale, activeStatusFilter)}
-              </p>
-            </div>
-          </div>
+              <div className="grid gap-3 min-[380px]:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+                {starterPanelActivities.map((activity) => (
+                  <ActivityCard
+                    key={`starter:${getLobbyActivityKey(activity)}`}
+                    actionContext="lobby"
+                    activity={activity}
+                    favoriteRedirectPath="/lobby"
+                    isAuthenticated
+                    locale={locale}
+                    mobileDense
+                    showFavoriteButton
+                    showPrimaryAction
+                    sourceSurface="activity_list"
+                    detailSourceKey="lobby"
+                    detailSourceState={{ starter: true }}
+                  />
+                ))}
+              </div>
+            </section>
+          ) : null}
 
-          <div className="grid gap-3 min-[380px]:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
-            {visiblePageActivities.map((activity) => (
-              <ActivityCard
-                key={getLobbyActivityKey(activity)}
-                actionContext="lobby"
-                activity={activity}
-                favoriteRedirectPath="/lobby"
-                isAuthenticated
-                isOwnActivity={createdActivityKeys.has(
-                  getLobbyActivityKey(activity),
-                )}
-                locale={locale}
-                mobileDense
-                showFavoriteButton
-                showPrimaryAction
-                sourceSurface="activity_list"
-                detailSourceKey="lobby"
-                detailSourceState={{
-                  filter: activeFilter,
-                  page,
-                  status: activeStatusFilter,
-                }}
-              />
-            ))}
-          </div>
-          <LobbyPagination
-            locale={locale}
-            onPageChange={setPage}
-            page={page}
-            scrollTargetId="lobby-results"
-            totalItems={visibleActivities.length}
-          />
-        </section>
+          <section
+            id="lobby-results"
+            className="space-y-3 border-t border-sand pt-4 sm:space-y-4"
+          >
+            <div className="flex items-center justify-between gap-3 px-1">
+              <div className="min-w-0">
+                <div className="flex min-w-0 items-center gap-2">
+                  <h2 className="truncate text-lg font-semibold text-ink sm:text-xl">
+                    {activeCategoryLabel}
+                  </h2>
+                  <span className="shrink-0 rounded-full bg-white/78 px-2.5 py-1 text-xs font-semibold text-[#8a7455] ring-1 ring-sand">
+                    {visibleActivities.length}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  {getStatusFilterLabel(locale, activeStatusFilter)}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-3 min-[380px]:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+              {visiblePageActivities.map((activity) => (
+                <ActivityCard
+                  key={getLobbyActivityKey(activity)}
+                  actionContext="lobby"
+                  activity={activity}
+                  favoriteRedirectPath="/lobby"
+                  isAuthenticated
+                  isOwnActivity={createdActivityKeys.has(
+                    getLobbyActivityKey(activity),
+                  )}
+                  locale={locale}
+                  mobileDense
+                  showFavoriteButton
+                  showPrimaryAction
+                  sourceSurface="activity_list"
+                  detailSourceKey="lobby"
+                  detailSourceState={{
+                    filter: activeFilter,
+                    page,
+                    status: activeStatusFilter,
+                  }}
+                />
+              ))}
+            </div>
+            <LobbyPagination
+              locale={locale}
+              onPageChange={setPage}
+              page={page}
+              scrollTargetId="lobby-results"
+              totalItems={visibleActivities.length}
+            />
+          </section>
+        </>
       )}
     </div>
   );

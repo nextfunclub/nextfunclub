@@ -68,6 +68,7 @@ export default async function ActivityLobbyPage({
         favoriteActivities: [],
         friendHostedActivities: [],
         friendJoinedActivities: [],
+        starterActivities: [],
       };
     }),
   );
@@ -94,6 +95,7 @@ export default async function ActivityLobbyPage({
         favoriteActivities={lobby.favoriteActivities}
         friendHostedActivities={lobby.friendHostedActivities}
         friendJoinedActivities={lobby.friendJoinedActivities}
+        starterActivities={lobby.starterActivities}
         locale={locale}
       />
     </PageContainer>
