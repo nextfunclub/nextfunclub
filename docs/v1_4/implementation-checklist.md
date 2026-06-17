@@ -332,13 +332,14 @@ feature/backfill-ticket-links
 
 小功能：
 
-- [ ] 新增一次性回填脚本，默认 dry-run，只输出会更新的数量和样例
-- [ ] 支持 `--write` 或明确参数后才真实写库
-- [ ] 优先回填 `PublicEvent.ticketUrl` / `PublicEvent.ticketLabel`
-- [ ] 如仍存在旧 `Activity` 形式的 Open Data 活动，再回填 `Activity.ticketUrl` / `Activity.ticketLabel`
-- [ ] 从 `sourcePayload.access_link` 读取订票或预约链接
-- [ ] 从 `sourcePayload.access_link_text` 读取按钮文案，但需要复用订票文案过滤规则
-- [ ] 回填后输出 created / updated / skipped / invalidUrl 等统计
+- [x] 新增一次性回填脚本，默认 dry-run，只输出会更新的数量和样例
+- [x] 支持 `--write` 或明确参数后才真实写库
+- [x] 优先回填 `PublicEvent.ticketUrl` / `PublicEvent.ticketLabel`
+- [x] 如仍存在旧 `Activity` 形式的 Open Data 活动，再回填 `Activity.ticketUrl` / `Activity.ticketLabel`
+- [x] 从 `sourcePayload.access_link` 读取订票或预约链接
+- [x] 从 `sourcePayload.access_link_text` 读取按钮文案，但需要复用订票文案过滤规则
+- [x] 回填后输出 created / updated / skipped / invalidUrl 等统计
+- [x] 后续 Open Data 导入和回填共用订票按钮文案存储规则，通用文案不写入数据库，前端按 locale 展示默认按钮
 
 注意事项：
 
@@ -348,6 +349,8 @@ feature/backfill-ticket-links
 - `access_link_text` 如果是 URL、过长、或通用法语文案如 `Réservation`，不要写入 `ticketLabel`
 - 回填前先在 preview 数据库 dry-run，并保留样例 title / id / ticketUrl 供人工确认
 - 生产环境执行前需要确认数据库备份或可回滚方案
+- dry-run 命令：`npm run db:backfill-ticket-links --workspace=apps/web`
+- 写入命令：`npm run db:backfill-ticket-links --workspace=apps/web -- --write`
 
 验收标准：
 
@@ -389,3 +392,90 @@ feature/share-poster-entry-polish
 - 下载的宣传图包含活动 / 组队标题、时间、地点、费用、二维码和新 logo
 - 有封面图的详情页，生成宣传图时能展示该封面图
 - `npm run typecheck` 通过
+
+### 12. 地图跳转 Google Maps
+
+建议分支：
+
+```text
+feature/google-maps-deep-link
+```
+
+需求理解：
+
+当前活动详情页已有地图展示和打开地图能力，但默认是 OpenStreetMap。用户在移动端或海外使用场景中，经常需要直接跳到 Google Maps 进行路线规划。因此地图模块需要提供 Google Maps 跳转入口，同时保留现有 OpenStreetMap 展示。
+
+小功能：
+
+- [ ] 活动 / 公共活动详情页地图模块提供 Google Maps 外链入口
+- [ ] 有经纬度时优先使用 `latitude,longitude` 构造 Google Maps query
+- [ ] 没有经纬度但有地址时使用活动地址和城市构造 Google Maps query
+- [ ] 外链新窗口打开，并带 `target="_blank"` / `rel="noreferrer"`
+- [ ] 复制活动信息时可以继续保留地图链接或坐标信息
+
+验收标准：
+
+- 点击 Google Maps 能打开对应地点或搜索结果
+- 地址只有 `Paris` 且有坐标时，Google Maps 使用坐标而不是泛地址
+- 没有地图数据时不展示无效按钮
+- 移动端按钮不挤压报名、抢票、组队等主要操作
+
+### 13. 近七日活动天气组件
+
+建议分支：
+
+```text
+feature/activity-weather-widget
+```
+
+需求理解：
+
+如果活动发生在近七日内，并且活动时间是某一个具体日期，可以在详情页展示天气组件。天气应基于活动地点，而不是用户当前位置。需要优先复用或抽象一个公共 `météo` / weather 组件，避免在活动页硬编码天气 UI。
+
+小功能：
+
+- [ ] 新增或复用公共 `météo` 天气组件
+- [ ] 仅当活动开始时间在未来七日内时展示
+- [ ] 仅当活动有明确日期时展示；长期展览、多日活动或时间范围过宽时不展示
+- [ ] 天气查询优先使用活动经纬度；没有经纬度时可用城市 / 地址兜底
+- [ ] 天气组件展示温度、天气状态、降雨概率或风力等对出行有帮助的信息
+- [ ] 天气数据需要有加载态、错误态和无数据兜底，不影响活动详情主内容
+
+验收标准：
+
+- 近七日单日活动能看到基于活动地点的天气
+- 超过七日、缺少地点或长期活动不展示误导性天气
+- 天气接口失败时页面不崩溃
+- 移动端不会挤压抢票、报名、组队等主要操作
+
+### 14. DeepL Free 活动与评论翻译
+
+建议分支：
+
+```text
+feature/deepl-translation-cache
+```
+
+需求理解：
+
+接入 DeepL API Free，用于活动内容和评论的多语言翻译。活动标题、描述、地点、费用等主要信息需要根据用户 locale 展示对应翻译，并把翻译结果写入数据库缓存；下一个用户访问同一 locale 时直接读库，不重复消耗 API 配额。评论翻译不自动触发，评论旁边展示机器人图标和“翻译”文案，用户点击后手动翻译并缓存。已翻译评论需要支持查看 original 原文。
+
+小功能：
+
+- [ ] 设计活动翻译缓存表，按 entity、字段名、locale、源内容 hash 存储翻译
+- [ ] 活动标题、描述、地点、费用、按钮辅助文案等主要字段可按当前 locale 读取翻译
+- [ ] 活动翻译缓存命中时不调用 DeepL
+- [ ] 活动源内容变化后通过 hash 失效旧翻译
+- [ ] 接入 DeepL API Free，密钥通过环境变量配置，服务端调用，不暴露到前端
+- [ ] 评论旁边展示机器人图标 + 本地化“翻译 / Translate / Traduire”按钮
+- [ ] 评论翻译点击后才调用 DeepL，并把结果写入数据库
+- [ ] 已有评论翻译时自动展示当前 locale 翻译，同时提供查看 original 原文入口
+- [ ] 翻译接口需要限流、错误提示和失败兜底，不影响评论正常展示
+
+验收标准：
+
+- 用户切换 locale 后，活动主要内容能展示对应语言
+- 同一个活动同一个 locale 第二次访问不重复调用 DeepL
+- 评论翻译是用户手动触发，不会批量消耗额度
+- 已翻译评论可以切换查看原文
+- DeepL 配额或接口异常时页面仍可正常浏览原始内容
