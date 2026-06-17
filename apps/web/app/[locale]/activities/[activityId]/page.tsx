@@ -35,6 +35,7 @@ import { ActivityCommentsSection } from "@/features/activities/components/Activi
 import { ActivityCopyButton } from "@/features/activities/components/ActivityCopyButton";
 import { ActivityCoverImage } from "@/features/activities/components/ActivityCoverImage";
 import { ActivityMapPreview } from "@/features/activities/components/ActivityMapPreview";
+import { ActivityRichDescription } from "@/features/activities/components/ActivityRichDescription";
 import { OrganizerParticipationToggleForm } from "@/features/activities/components/OrganizerParticipationToggleForm";
 import { ActivityShareTools } from "@/features/activities/components/ActivityShareTools";
 import { JoinActivityForm } from "@/features/activities/components/JoinActivityForm";
@@ -103,6 +104,24 @@ function getStableParticipantAvatarTone(value: string) {
 
 function getParticipantInitial(nickname: string) {
   return nickname.trim().charAt(0).toUpperCase() || "N";
+}
+
+function getTicketCtaLabel(locale: string, label?: string | null) {
+  const normalizedLabel = label?.trim();
+
+  if (normalizedLabel) {
+    return normalizedLabel;
+  }
+
+  if (locale === "fr") {
+    return "Réserver";
+  }
+
+  if (locale === "en") {
+    return "Get tickets";
+  }
+
+  return "立即抢票";
 }
 
 export const dynamic = "force-dynamic";
@@ -204,6 +223,8 @@ export default async function ActivityDetailPage({
     const isCancelled = activity.status === "CANCELLED";
     const isEndedByTime = activityEndBoundary <= new Date();
     const canCreateTeam = !isCancelled && !isEndedByTime;
+    const canOpenTicketLink = Boolean(activity.ticketUrl) && canCreateTeam;
+    const ticketCtaLabel = getTicketCtaLabel(locale, activity.ticketLabel);
     const unavailableReason = isCancelled
       ? publicEventCopy.eventCancelled
       : publicEventCopy.eventEnded;
@@ -276,9 +297,16 @@ export default async function ActivityDetailPage({
               <h2 className="text-lg font-semibold text-ink">
                 {publicEventCopy.eventInfoTitle}
               </h2>
-              <p className="mt-3 whitespace-pre-line text-sm leading-7 text-zinc-600">
-                {activity.description}
-              </p>
+              <ActivityRichDescription
+                className="mt-3 whitespace-pre-wrap text-sm leading-7 text-zinc-600"
+                copyFailedLabel={t.activityShare.copyFailed}
+                copyLabel={t.activityShare.copyLink}
+                copySuccessLabel={t.activityShare.copied}
+                entityId={detailAnalyticsEntity.entityId}
+                entityType={detailAnalyticsEntity.entityType}
+                sourceSurface="public_event_detail"
+                text={activity.description}
+              />
             </div>
 
             {activity.latitude !== null && activity.longitude !== null ? (
@@ -368,6 +396,24 @@ export default async function ActivityDetailPage({
             </div>
 
             <div className="mt-6 grid gap-3">
+              {canOpenTicketLink && activity.ticketUrl ? (
+                <AnalyticsExternalLink
+                  className="inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-[#d88d72] px-4 text-sm font-semibold text-white transition hover:bg-[#c87b61]"
+                  event={{
+                    name: "ticket_link_clicked",
+                    entityId: detailAnalyticsEntity.entityId,
+                    entityType: detailAnalyticsEntity.entityType,
+                    sourceSurface: "public_event_detail",
+                    properties: {
+                      item_kind: detailAnalyticsEntity.itemKind,
+                    },
+                  }}
+                  href={activity.ticketUrl}
+                >
+                  {ticketCtaLabel}
+                  <ExternalLink className="h-4 w-4" />
+                </AnalyticsExternalLink>
+              ) : null}
               {activity.officialUrl ? (
                 <AnalyticsExternalLink
                   className="inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-white px-4 text-sm font-medium text-ink ring-1 ring-black/10 transition hover:bg-zinc-50"
@@ -464,6 +510,12 @@ export default async function ActivityDetailPage({
       ? `${activity.participantCount}/${activity.capacity} ${t.common.people}`
       : `${activity.participantCount} ${t.common.people}`;
   const participantPreview = activity.participantPreview ?? [];
+  const ticketUrl = activity.ticketUrl ?? activity.publicEvent?.ticketUrl ?? null;
+  const ticketLabel = getTicketCtaLabel(
+    locale,
+    activity.ticketLabel ?? activity.publicEvent?.ticketLabel,
+  );
+  const canOpenTicketLink = Boolean(ticketUrl) && !isCancelled && !isEndedByTime;
   const activityPriceLabel = getActivityPriceLabel(activity, locale);
   const activityVisibilityLabel =
     activity.visibility === "PRIVATE"
@@ -546,17 +598,24 @@ export default async function ActivityDetailPage({
         </div>
       </div>
 
-      <section className="rounded-lg border border-black/10 bg-white/70 p-4 sm:p-5">
-        <h2 className="text-lg font-semibold text-ink">
-          {t.activityDetail.descriptionTitle}
-        </h2>
-        <p className="mt-3 whitespace-pre-line text-sm leading-7 text-zinc-600">
-          {activity.description}
-        </p>
-      </section>
-
       <section className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <article className="min-w-0 space-y-6 lg:order-1">
+          <div className="rounded-lg border border-black/10 bg-white/70 p-4 sm:p-5">
+            <h2 className="text-lg font-semibold text-ink">
+              {t.activityDetail.descriptionTitle}
+            </h2>
+            <ActivityRichDescription
+              className="mt-3 whitespace-pre-wrap text-sm leading-7 text-zinc-600"
+              copyFailedLabel={t.activityShare.copyFailed}
+              copyLabel={t.activityShare.copyLink}
+              copySuccessLabel={t.activityShare.copied}
+              entityId={detailAnalyticsEntity.entityId}
+              entityType={detailAnalyticsEntity.entityType}
+              sourceSurface="activity_detail"
+              text={activity.description}
+            />
+          </div>
+
           <div className="rounded-lg border border-black/10 bg-white/70 p-4 sm:p-5">
             <div className="flex items-center gap-2">
               <Route className="h-5 w-5 text-moss" />
@@ -881,6 +940,38 @@ export default async function ActivityDetailPage({
                   : t.activityDetail.approvalAuto}
               </span>
             </p>
+
+            {canOpenTicketLink && ticketUrl ? (
+              <AnalyticsExternalLink
+                className="inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-[#d88d72] px-4 text-sm font-semibold text-white transition hover:bg-[#c87b61]"
+                event={{
+                  name: "ticket_link_clicked",
+                  entityId: detailAnalyticsEntity.entityId,
+                  entityType: detailAnalyticsEntity.entityType,
+                  sourceSurface: "activity_detail",
+                  properties: {
+                    item_kind: detailAnalyticsEntity.itemKind,
+                  },
+                }}
+                href={ticketUrl}
+              >
+                {ticketLabel}
+                <ExternalLink className="h-4 w-4" />
+              </AnalyticsExternalLink>
+            ) : null}
+
+            {activity.publicEvent ? (
+              <Link
+                className="inline-flex h-10 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-white px-4 text-sm font-medium text-ink ring-1 ring-black/10 transition hover:bg-zinc-50"
+                href={withLocale(
+                  locale,
+                  `/public-events/${activity.publicEvent.id}`,
+                )}
+              >
+                {publicEventCopy.linkedEventCta}
+                <ExternalLink className="h-4 w-4" />
+              </Link>
+            ) : null}
 
             <div className="mt-3 border-t border-sand pt-3">
               {isOrganizer ? (

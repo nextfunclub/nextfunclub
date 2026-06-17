@@ -9,8 +9,10 @@ import {
 } from "lucide-react";
 import { Button } from "@chill-club/ui";
 import { PageContainer } from "@/components/layout/PageContainer";
+import { AnalyticsExternalLink } from "@/features/analytics/components/AnalyticsExternalLink";
 import { AnalyticsLink } from "@/features/analytics/components/AnalyticsLink";
 import { ActivityCopyButton } from "@/features/activities/components/ActivityCopyButton";
+import { ActivityRichDescription } from "@/features/activities/components/ActivityRichDescription";
 import { normalizeAnalyticsLocale } from "@/features/analytics/events";
 import { queueAnalyticsEvent } from "@/features/analytics/server";
 import { inferAnalyticsSourceSurfaceFromReferrer } from "@/features/analytics/utils";
@@ -40,6 +42,24 @@ type PublicEventDetailPageProps = {
     publicEventId: string;
   }>;
 };
+
+function getTicketCtaLabel(locale: string, label?: string | null) {
+  const normalizedLabel = label?.trim();
+
+  if (normalizedLabel) {
+    return normalizedLabel;
+  }
+
+  if (locale === "fr") {
+    return "Réserver";
+  }
+
+  if (locale === "en") {
+    return "Get tickets";
+  }
+
+  return "立即抢票";
+}
 
 export const dynamic = "force-dynamic";
 
@@ -116,6 +136,8 @@ export default async function PublicEventDetailPage({
   const isCancelled = publicEvent.status === "CANCELLED";
   const isEnded = eventEndBoundary <= new Date();
   const canCreateTeam = !isCancelled && !isEnded;
+  const canOpenTicketLink = Boolean(publicEvent.ticketUrl) && canCreateTeam;
+  const ticketCtaLabel = getTicketCtaLabel(locale, publicEvent.ticketLabel);
   const unavailableReason = isCancelled ? t.eventCancelled : t.eventEnded;
   const teamSectionDescription = isCancelled
     ? t.teamSectionUnavailableDescription
@@ -182,24 +204,22 @@ export default async function PublicEventDetailPage({
         </div>
       </div>
 
-      <div className="rounded-[1.25rem] border border-[#d8ccb4] bg-white/78 p-4 shadow-sm lg:hidden">
-        <h2 className="text-lg font-semibold text-ink">
-          {t.eventInfoTitle}
-        </h2>
-        <p className="mt-3 whitespace-pre-line text-sm leading-7 text-zinc-600">
-          {publicEvent.description}
-        </p>
-      </div>
-
       <section className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <article className="min-w-0 space-y-6 lg:order-1">
-          <div className="hidden rounded-[1.25rem] border border-[#d8ccb4] bg-white/78 p-4 shadow-sm sm:p-5 lg:block">
+          <div className="rounded-[1.25rem] border border-[#d8ccb4] bg-white/78 p-4 shadow-sm sm:p-5">
             <h2 className="text-lg font-semibold text-ink">
               {t.eventInfoTitle}
             </h2>
-            <p className="mt-3 whitespace-pre-line text-sm leading-7 text-zinc-600">
-              {publicEvent.description}
-            </p>
+            <ActivityRichDescription
+              className="mt-3 whitespace-pre-wrap text-sm leading-7 text-zinc-600"
+              copyFailedLabel={appCopy.activityShare.copyFailed}
+              copyLabel={appCopy.activityShare.copyLink}
+              copySuccessLabel={appCopy.activityShare.copied}
+              entityId={publicEvent.id}
+              entityType="public_event"
+              sourceSurface="public_event_detail"
+              text={publicEvent.description}
+            />
           </div>
 
           {publicEvent.teams.length > 0 ? (
@@ -367,6 +387,25 @@ export default async function PublicEventDetailPage({
               </span>
             </p>
           </div>
+          {canOpenTicketLink && publicEvent.ticketUrl ? (
+            <AnalyticsExternalLink
+              className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-[#d88d72] px-4 text-sm font-semibold text-white transition hover:bg-[#c87b61]"
+              event={{
+                name: "ticket_link_clicked",
+                entityId: publicEvent.id,
+                entityType: "public_event",
+                sourceSurface: "public_event_detail",
+                properties: {
+                  category: publicEvent.category,
+                  city: publicEvent.city,
+                },
+              }}
+              href={publicEvent.ticketUrl}
+            >
+              {ticketCtaLabel}
+              <Ticket className="h-4 w-4" />
+            </AnalyticsExternalLink>
+          ) : null}
           {!canCreateTeam ? (
             <p className="mt-5 rounded-xl bg-white/80 px-3 py-3 text-sm text-zinc-600 ring-1 ring-[#dccba8]">
               {unavailableReason}
