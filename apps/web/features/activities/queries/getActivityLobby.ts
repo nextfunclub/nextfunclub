@@ -10,7 +10,6 @@ import {
 } from "@/features/public-events/queries/getPublicEvents";
 import type { ActivityCardViewModel } from "../types";
 import {
-  getActivities,
   activityCardSelect,
   getActivityCoverTone,
   getActivityCardViewModel,
@@ -23,7 +22,8 @@ import type { Prisma } from "@prisma/client";
 
 const activityLobbySectionLimit = 6;
 const activityLobbyFeedLimit = 48;
-const activityLobbyArchivedFeedLimit = 12;
+const activityLobbyArchivedFeedLimit = activityLobbyFeedLimit;
+const activityLobbyPreviewLimit = activityLobbyFeedLimit * 2;
 const activityLobbyStarterLimit = 8;
 const visibleLobbyParticipationStatuses = ["JOINED", "APPROVED", "PENDING"] as const;
 export const OPEN_LOBBY_ACTIVITIES_TAG = "open-lobby-activities";
@@ -282,6 +282,33 @@ function compareLobbyActivityTime(
     : leftTime - rightTime || left.id.localeCompare(right.id);
 }
 
+function getArchivedLobbyActivityWhere(now: Date): Prisma.ActivityWhereInput {
+  return {
+    OR: [
+      {
+        status: "ENDED",
+      },
+      {
+        endAt: {
+          lt: now,
+        },
+      },
+      {
+        AND: [
+          {
+            endAt: null,
+          },
+          {
+            startAt: {
+              lt: now,
+            },
+          },
+        ],
+      },
+    ],
+  };
+}
+
 function buildLobbyPriorityFeed({
   createdActivities,
   favoriteActivities,
@@ -418,30 +445,7 @@ async function getLobbyQueryContext(
   });
   const accessibleWhere = getAccessibleWhere(visibleWhere);
   const accessibleActiveWhere = getAccessibleWhere(activeVisibleWhere);
-  const archivedWhere: Prisma.ActivityWhereInput = {
-    OR: [
-      {
-        status: "ENDED",
-      },
-      {
-        endAt: {
-          lt: now,
-        },
-      },
-      {
-        AND: [
-          {
-            endAt: null,
-          },
-          {
-            startAt: {
-              lt: now,
-            },
-          },
-        ],
-      },
-    ],
-  };
+  const archivedWhere = getArchivedLobbyActivityWhere(now);
 
   return {
     accessibleActiveWhere,
@@ -772,9 +776,56 @@ export async function getActivityLobby(
 }
 
 export async function getActivityLobbyPreview() {
-  return getActivities({
-    includePast: false,
-    limit: 12,
-    viewerProfileId: null,
-  });
+  const now = new Date();
+  const publicTeamWhere: Prisma.ActivityWhereInput = {
+    AND: [
+      getVisibleActivityWhere({
+        includeEnded: true,
+        includePast: true,
+        visibility: null,
+        now,
+      }),
+      { visibility: "PUBLIC" },
+      strictTeamCardWhere,
+    ],
+  };
+  const publicActiveTeamWhere: Prisma.ActivityWhereInput = {
+    AND: [
+      getVisibleActivityWhere({
+        includeEnded: false,
+        includePast: false,
+        visibility: null,
+        now,
+      }),
+      { visibility: "PUBLIC" },
+      strictTeamCardWhere,
+    ],
+  };
+  const [activeActivities, archivedActivities] = await Promise.all([
+    prisma.activity.findMany({
+      where: publicActiveTeamWhere,
+      orderBy: [{ startAt: "asc" }, { id: "asc" }],
+      take: activityLobbyPreviewLimit,
+      select: activityCardSelect,
+    }),
+    prisma.activity.findMany({
+      where: {
+        AND: [publicTeamWhere, getArchivedLobbyActivityWhere(now)],
+      },
+      orderBy: [{ startAt: "desc" }, { id: "asc" }],
+      take: activityLobbyPreviewLimit,
+      select: activityCardSelect,
+    }),
+  ]);
+  const activities = [...activeActivities, ...archivedActivities].map(
+    getActivityCardViewModel,
+  );
+
+  return Array.from(
+    new Map(
+      activities
+        .sort(compareLobbyActivityTime)
+        .map((activity) => [activity.id, activity]),
+    ).values(),
+  ).slice(0, activityLobbyPreviewLimit);
 }

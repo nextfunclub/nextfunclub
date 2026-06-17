@@ -31,7 +31,7 @@
 - `Past` 状态导入为 `Activity.status = ENDED`。
 - `Going` 状态导入为 `Activity.status = CONFIRMED`。
 - 日期按巴黎时间解释后转为 UTC timestamp 写入数据库。
-- 缺失集合时间的组局暂按巴黎时间 19:00 导入，并在 `sourcePayload.reviewNotes` 中标记。
+- 缺失集合时间的组局暂按巴黎时间 19:00 导入，并在活动描述中标记导入复核。
 - `Hoting` / `hoting` 按同一发起人导入。
 - `咔哒` / `咔嗒` 按同一参与人导入，统一展示为 `咔嗒`。
 - SQL 使用 deterministic id，例如 `legacy_activity_001`、`legacy_guest_001_001`，可以重复执行，不会重复创建同一批组局。
@@ -45,7 +45,7 @@
 | 类型 | `Activity.category` |
 | Date + 集合时间 | `Activity.startAt` / `Activity.endAt` |
 | 集合地点，兜底活动地点 | `Activity.address` |
-| 链接 | `Activity.externalUrl` |
+| 链接 | 写入 `Activity.description` 的原始链接说明，不写 `externalUrl` |
 | 发起人 | `Activity.organizerId` |
 | 参加人数 | `Activity.capacity` |
 | 报名成员 | `GuestActivityParticipant.displayName` |
@@ -91,4 +91,4 @@ legacy guest participants = 83
 
 - 该导入文档包含真实微信号，不能进入 Git。
 - 没有微信映射的游客参与人仍会导入，但后续无法通过微信号自动绑定账号。
-- 缺失时间或地点的记录已经在 `sourcePayload.reviewNotes` 中标记，后续可以在后台或 SQL 中人工修正。
+- 缺失时间或地点的记录已经在活动描述中标记，后续可以在后台或 SQL 中人工修正。
