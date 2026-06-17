@@ -13,7 +13,7 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace=apps/web",
-    "build": "turbo run build",
+    "build": "npm run db:generate --workspace=apps/web && turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",

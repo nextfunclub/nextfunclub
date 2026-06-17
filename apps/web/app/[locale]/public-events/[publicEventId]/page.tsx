@@ -37,6 +37,8 @@ import { PublicEventFavoriteButton } from "@/features/favorites/components/Publi
 import { DetailSourceReturnLink } from "@/features/navigation/components/DetailSourceReturnLink";
 import { DetailSourceRestore } from "@/features/navigation/components/DetailSourceRestore";
 import { ManualTranslationBundle } from "@/features/translations/components/ManualTranslation";
+import { ActivityWeatherWidget } from "@/features/weather/components/ActivityWeatherWidget";
+import { getActivityWeatherWidgetInput } from "@/features/weather/activityWeather";
 import { getCopy } from "@/lib/copy";
 
 type PublicEventDetailPageProps = {
@@ -110,6 +112,7 @@ export default async function PublicEventDetailPage({
   const eventDateLabel = getEventDateLabel(publicEvent, locale);
   const eventPriceLabel = getEventPriceLabel(publicEvent, locale);
   const eventLocation = getPublicEventLocationDisplay(publicEvent, locale);
+  const weatherInput = getActivityWeatherWidgetInput(publicEvent);
   const eventSummaryCopyValue = [
     publicEvent.title,
     eventDateLabel,
@@ -339,6 +342,16 @@ export default async function PublicEventDetailPage({
               sharePath={publicEventPath}
             />
           </div>
+          {weatherInput ? (
+            <ActivityWeatherWidget
+              className="mb-4"
+              date={weatherInput.date}
+              latitude={weatherInput.latitude}
+              locale={locale}
+              locationQuery={weatherInput.locationQuery}
+              longitude={weatherInput.longitude}
+            />
+          ) : null}
           {isCancelled ? (
             <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-sm leading-6 text-red-700">
               <div className="flex items-center gap-2 font-semibold">

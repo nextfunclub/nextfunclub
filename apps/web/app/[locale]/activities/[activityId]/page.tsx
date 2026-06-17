@@ -70,6 +70,8 @@ import { getPublicEventCopy } from "@/features/public-events/copy";
 import { getTicketCtaLabel } from "@/features/public-events/utils/ticketCta";
 import { ReportDialog } from "@/features/reports/components/ReportDialog";
 import { ManualTranslationBundle } from "@/features/translations/components/ManualTranslation";
+import { ActivityWeatherWidget } from "@/features/weather/components/ActivityWeatherWidget";
+import { getActivityWeatherWidgetInput } from "@/features/weather/activityWeather";
 import { getOptionalCurrentUserProfileSnapshot } from "@/lib/auth";
 import { getCategoryLabel, getCopy, getTypeLabel } from "@/lib/copy";
 import { createPerformanceTracker } from "@/lib/performance";
@@ -150,6 +152,7 @@ export default async function ActivityDetailPage({
     notFound();
   }
 
+  const weatherInput = getActivityWeatherWidgetInput(activity);
   const isPrivateActivity = activity.visibility === "PRIVATE";
   const shareToken =
     isPrivateActivity && viewerProfile?.id === activity.organizer.id
@@ -360,6 +363,17 @@ export default async function ActivityDetailPage({
                 shareKind="activity"
               />
             </div>
+
+            {weatherInput ? (
+              <ActivityWeatherWidget
+                className="mb-5"
+                date={weatherInput.date}
+                latitude={weatherInput.latitude}
+                locale={locale}
+                locationQuery={weatherInput.locationQuery}
+                longitude={weatherInput.longitude}
+              />
+            ) : null}
 
             <div className="space-y-4 text-sm text-zinc-700">
               <p className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2">
@@ -933,7 +947,18 @@ export default async function ActivityDetailPage({
             />
           </div>
 
-          <div className="order-3 mt-3 space-y-3 rounded-[1.1rem] border border-sand bg-white/68 p-3 text-sm text-zinc-700 sm:p-4">
+          {weatherInput ? (
+            <ActivityWeatherWidget
+              className="order-3 mt-3"
+              date={weatherInput.date}
+              latitude={weatherInput.latitude}
+              locale={locale}
+              locationQuery={weatherInput.locationQuery}
+              longitude={weatherInput.longitude}
+            />
+          ) : null}
+
+          <div className="order-4 mt-3 space-y-3 rounded-[1.1rem] border border-sand bg-white/68 p-3 text-sm text-zinc-700 sm:p-4">
             <p className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2">
               <CalendarDays className="mt-0.5 h-4 w-4 shrink-0" />
               <span className="min-w-0 break-words">{activityDateLabel}</span>
