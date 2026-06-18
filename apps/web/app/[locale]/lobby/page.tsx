@@ -6,6 +6,7 @@ import {
 import {
   getActivityLobbyInitial,
   getActivityLobbyPreview,
+  getLobbySwipePublicEventActivities,
 } from "@/features/activities/queries/getActivityLobby";
 import { getOptionalCurrentUserProfileSnapshot } from "@/lib/auth";
 import { createPerformanceTracker } from "@/lib/performance";
@@ -31,16 +32,22 @@ export default async function ActivityLobbyPage({
   );
 
   if (!profile) {
-    const previewActivities = await perf.measure("lobby.preview", () =>
-      getActivityLobbyPreview().catch((error: unknown) => {
-        console.error("Failed to load public activity lobby preview", error);
+    const [previewActivities, swipeActivities] = await perf.measure(
+      "lobby.preview",
+      () =>
+        Promise.all([
+          getActivityLobbyPreview(),
+          getLobbySwipePublicEventActivities(null),
+        ]).catch((error: unknown) => {
+          console.error("Failed to load public activity lobby preview", error);
 
-        return [];
-      }),
+          return [[], []];
+        }),
     );
     perf.finish({
       hasViewer: false,
       previewCount: previewActivities.length,
+      swipeCount: swipeActivities.length,
     }, {
       route: `/${locale}/lobby`,
       routeKey: "lobby",
@@ -51,6 +58,7 @@ export default async function ActivityLobbyPage({
         <ActivityLobbyPreviewView
           activities={previewActivities}
           locale={locale}
+          swipeActivities={swipeActivities}
         />
       </PageContainer>
     );
@@ -69,6 +77,7 @@ export default async function ActivityLobbyPage({
         friendHostedActivities: [],
         friendJoinedActivities: [],
         starterActivities: [],
+        swipeActivities: [],
       };
     }),
   );
@@ -78,6 +87,7 @@ export default async function ActivityLobbyPage({
     favoriteCount: lobby.favoriteActivities.length,
     hasViewer: true,
     joinedCount: lobby.joinedActivities.length,
+    swipeCount: lobby.swipeActivities.length,
   }, {
     route: `/${locale}/lobby`,
     routeKey: "lobby",
@@ -96,6 +106,7 @@ export default async function ActivityLobbyPage({
         friendHostedActivities={lobby.friendHostedActivities}
         friendJoinedActivities={lobby.friendJoinedActivities}
         starterActivities={lobby.starterActivities}
+        swipeActivities={lobby.swipeActivities}
         locale={locale}
       />
     </PageContainer>
