@@ -158,7 +158,7 @@ const copy = {
       title: "Next Fun",
       tagline: "下一场，Fun 开场",
       description:
-        "平台·搭子·活动·车队，找你所需，找你所想，也可以看看好友们参加的活动，生活与快乐就在下一站等你！NEXT FUN！",
+        "搭子·活动·组局，找你所需，探你所想，生活与快乐就在下一站等你！NEXT FUN！",
       browseActivities: "浏览活动",
       homeActivityFailedTitle: "活动加载失败",
       homeActivityFailedDescription: "暂时无法加载活动，请稍后再试。",
