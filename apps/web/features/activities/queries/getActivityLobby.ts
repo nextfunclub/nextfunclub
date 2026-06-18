@@ -25,6 +25,7 @@ const activityLobbyFeedLimit = 48;
 const activityLobbyArchivedFeedLimit = activityLobbyFeedLimit;
 const activityLobbyPreviewLimit = activityLobbyFeedLimit * 2;
 const activityLobbyStarterLimit = 8;
+const activityLobbySwipeLimit = 24;
 const visibleLobbyParticipationStatuses = ["JOINED", "APPROVED", "PENDING"] as const;
 export const OPEN_LOBBY_ACTIVITIES_TAG = "open-lobby-activities";
 
@@ -95,6 +96,7 @@ export type ActivityLobbyViewModel = {
   friendHostedActivities: ActivityCardViewModel[];
   friendJoinedActivities: ActivityCardViewModel[];
   starterActivities: ActivityCardViewModel[];
+  swipeActivities: ActivityCardViewModel[];
 };
 
 type ActivityLobbyQueryContext = {
@@ -239,6 +241,31 @@ function mapPublicEventToActivityCard(
     merchant: null,
     isFavorited: publicEvent.isFavorited,
   };
+}
+
+export async function getLobbySwipePublicEventActivities(
+  viewerProfileId?: string | null,
+) {
+  const now = new Date();
+  const publicEvents = await prisma.publicEvent.findMany({
+    where: {
+      startAt: {
+        gt: now,
+      },
+      status: "SCHEDULED",
+      visibility: "PUBLIC",
+    },
+    orderBy: [{ startAt: "asc" }, { id: "asc" }],
+    take: activityLobbySwipeLimit,
+    select: publicEventSelect,
+  });
+  const publicEventCards = publicEvents.map(getPublicEventCardViewModel);
+  const cardsWithFavoriteState = await attachPublicEventFavoriteStates(
+    publicEventCards,
+    viewerProfileId,
+  );
+
+  return cardsWithFavoriteState.map(mapPublicEventToActivityCard);
 }
 
 function isJoinableTeamCard(activity: ActivityCardViewModel) {
@@ -652,6 +679,7 @@ export async function getActivityLobbyInitial(
     openActivities,
     createdActivities,
     joinedActivities,
+    swipeActivities,
   ] = await Promise.all([
     prisma.activity.findMany({
       where: {
@@ -672,6 +700,7 @@ export async function getActivityLobbyInitial(
     getOpenLobbySection(viewerProfileId, context),
     getCreatedLobbySection(viewerProfileId, context),
     getJoinedLobbySection(viewerProfileId, context),
+    getLobbySwipePublicEventActivities(viewerProfileId),
   ]);
 
   const feedActivityCards = [
@@ -718,6 +747,7 @@ export async function getActivityLobbyInitial(
     friendHostedActivities: [],
     friendJoinedActivities: [],
     starterActivities: starterActivityCards,
+    swipeActivities,
   };
 }
 
@@ -772,6 +802,7 @@ export async function getActivityLobby(
     friendHostedActivities,
     friendJoinedActivities,
     starterActivities: initialLobby.starterActivities,
+    swipeActivities: initialLobby.swipeActivities,
   };
 }
 

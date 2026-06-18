@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { PaginationControl } from "@/components/ui/PaginationControl";
 import { DetailSourceRestore } from "@/features/navigation/components/DetailSourceRestore";
 import {
@@ -13,6 +20,7 @@ import { withLocale } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import type { ActivityCardViewModel } from "../types";
 import { ActivityCard } from "./ActivityCard";
+import { ActivitySwipeDiscovery } from "./ActivitySwipeDiscovery";
 import { isPublicEventCard } from "../utils/activityCardKind";
 import { getActivityDisplayStatus } from "../utils/activityDisplay";
 
@@ -26,6 +34,7 @@ type ActivityLobbyViewProps = {
   friendHostedActivities: ActivityCardViewModel[];
   friendJoinedActivities: ActivityCardViewModel[];
   starterActivities: ActivityCardViewModel[];
+  swipeActivities: ActivityCardViewModel[];
   locale: string;
 };
 
@@ -455,11 +464,11 @@ function getActivityLobbyPreviewCopy(locale: string) {
 
 function FilterGroupRow({ children, label }: FilterGroupRowProps) {
   return (
-    <div className="grid gap-1.5 sm:grid-cols-[4.25rem_minmax(0,1fr)] sm:items-center sm:gap-2">
-      <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#8a7455] sm:px-0 sm:text-left sm:text-xs sm:tracking-[0.14em]">
+    <div className="grid gap-0.5 sm:grid-cols-[5.75rem_minmax(0,1fr)] sm:items-center sm:gap-2">
+      <p className="px-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#8a7455] sm:whitespace-nowrap sm:px-0 sm:text-left sm:text-[11px] sm:tracking-[0.08em]">
         {label}
       </p>
-      <div className="grid min-w-0 grid-cols-3 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
+      <div className="-mx-1 flex min-w-0 gap-1 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:gap-2 sm:overflow-visible sm:px-0 sm:pb-0 [&::-webkit-scrollbar]:hidden">
         {children}
       </div>
     </div>
@@ -560,9 +569,11 @@ function LobbySectionError({
 export function ActivityLobbyPreviewView({
   activities,
   locale,
+  swipeActivities,
 }: {
   activities: ActivityCardViewModel[];
   locale: string;
+  swipeActivities: ActivityCardViewModel[];
 }) {
   const previewCopy = getActivityLobbyPreviewCopy(locale);
   const [page, setPage] = useState(1);
@@ -589,36 +600,14 @@ export function ActivityLobbyPreviewView({
   return (
     <div className="space-y-6">
       <DetailSourceRestore sourceKey="lobby" />
-      <section className="rounded-[1.5rem] border border-[#dfceb0] bg-[linear-gradient(145deg,rgba(255,252,247,0.98),rgba(246,237,222,0.94))] px-5 py-5 shadow-[0_12px_30px_rgba(94,80,52,0.06)] sm:px-6 sm:py-6">
-        <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
-          <div className="max-w-2xl">
-            <p className="text-sm font-medium text-moss">
-              {previewCopy.eyebrow}
-            </p>
-            <h1 className="mt-1.5 text-2xl font-semibold leading-tight text-ink sm:text-4xl">
-              {previewCopy.title}
-            </h1>
-            <p className="mt-2 text-sm leading-6 text-zinc-600 sm:text-base">
-              {previewCopy.description}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row md:flex-col lg:flex-row">
-            <Link
-              href={withLocale(locale, "/sign-in")}
-              className="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-full bg-ink px-5 text-sm font-semibold text-white transition hover:bg-zinc-800"
-            >
-              {previewCopy.signIn}
-            </Link>
-            <Link
-              href={withLocale(locale, "/activities")}
-              className="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-full border border-[#d8cbb8] bg-white/75 px-5 text-sm font-semibold text-[#705f4d] transition hover:bg-white"
-            >
-              {previewCopy.browse}
-            </Link>
-          </div>
-        </div>
-      </section>
+      <ActivitySwipeDiscovery
+        activities={swipeActivities}
+        className="sm:hidden"
+        isAuthenticated={false}
+        locale={locale}
+        sourceSurface="activity_list"
+        variant="lobby"
+      />
 
       <section
         id="lobby-preview-results"
@@ -683,6 +672,7 @@ export function ActivityLobbyView({
   friendHostedActivities,
   friendJoinedActivities,
   starterActivities,
+  swipeActivities,
   locale,
 }: ActivityLobbyViewProps) {
   const t = getCopy(locale).activityLobby;
@@ -693,6 +683,8 @@ export function ActivityLobbyView({
   const [lazySections, setLazySections] = useState<
     Partial<Record<LobbyFilterId, ActivityCardViewModel[]>>
   >({});
+  const lazySectionsRef = useRef(lazySections);
+  const inFlightSectionRefs = useRef(new Set<LobbyFilterId>());
   const [loadingFilter, setLoadingFilter] = useState<LobbyFilterId | null>(null);
   const [failedFilters, setFailedFilters] = useState<
     Partial<Record<LobbyFilterId, boolean>>
@@ -701,6 +693,14 @@ export function ActivityLobbyView({
     () => new Set<LobbyFilterId>(deferredFilters),
     [deferredFilters],
   );
+  const deferredFilterKey = useMemo(
+    () => deferredFilters.join("|"),
+    [deferredFilters],
+  );
+
+  useEffect(() => {
+    lazySectionsRef.current = lazySections;
+  }, [lazySections]);
   useEffect(() => {
     const context = readDetailSourceContext();
 
@@ -901,6 +901,91 @@ export function ActivityLobbyView({
     filterOptions.find((option) => option.id === activeFilter)?.label ??
     getAllLabel(locale);
 
+  const loadDeferredSection = useCallback(
+    async (
+      filter: LobbyFilterId,
+      options: {
+        visual?: boolean;
+      } = {},
+    ) => {
+      if (
+        !deferredFilterSet.has(filter) ||
+        lazySectionsRef.current[filter] ||
+        inFlightSectionRefs.current.has(filter)
+      ) {
+        return;
+      }
+
+      inFlightSectionRefs.current.add(filter);
+
+      if (options.visual) {
+        setLoadingFilter(filter);
+      }
+
+      setFailedFilters((current) => ({
+        ...current,
+        [filter]: false,
+      }));
+
+      const controller = new AbortController();
+      const timeoutId =
+        typeof window === "undefined"
+          ? null
+          : window.setTimeout(() => controller.abort(), 15000);
+
+      try {
+        const params = new URLSearchParams({
+          section: filter,
+        });
+        const response = await fetch(`/api/lobby/section?${params.toString()}`, {
+          credentials: "same-origin",
+          headers: {
+            Accept: "application/json",
+          },
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Lobby section request failed: ${response.status}`);
+        }
+
+        const payload = (await response.json()) as LobbySectionResponse;
+
+        if (!payload.ok) {
+          throw new Error("Lobby section payload was not ok.");
+        }
+
+        setLazySections((current) => {
+          const next = {
+            ...current,
+            [filter]: payload.activities ?? [],
+          };
+
+          lazySectionsRef.current = next;
+
+          return next;
+        });
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          console.error("Failed to load lobby section", error);
+        }
+
+        setFailedFilters((current) => ({
+          ...current,
+          [filter]: true,
+        }));
+      } finally {
+        if (timeoutId !== null) {
+          window.clearTimeout(timeoutId);
+        }
+
+        inFlightSectionRefs.current.delete(filter);
+        setLoadingFilter((current) => (current === filter ? null : current));
+      }
+    },
+    [deferredFilterSet],
+  );
+
   useEffect(() => {
     setPage(1);
   }, [activeFilter, activeStatusFilter]);
@@ -909,71 +994,60 @@ export function ActivityLobbyView({
     if (
       !deferredFilterSet.has(activeFilter) ||
       lazySections[activeFilter] ||
-      loadingFilter === activeFilter
+      activeFilterFailed
     ) {
       return;
     }
 
+    void loadDeferredSection(activeFilter, { visual: true });
+  }, [
+    activeFilter,
+    activeFilterFailed,
+    deferredFilterSet,
+    lazySections,
+    loadDeferredSection,
+  ]);
+
+  useEffect(() => {
+    if (deferredFilters.length === 0 || typeof window === "undefined") {
+      return;
+    }
+
     let cancelled = false;
-    const params = new URLSearchParams({
-      section: activeFilter,
-    });
+    let timerId: number | null = null;
+    const filters = deferredFilters.filter(
+      (filter) =>
+        filter === "favorites" ||
+        filter === "friendHosted" ||
+        filter === "friendJoined",
+    );
 
-    setLoadingFilter(activeFilter);
-    setFailedFilters((current) => ({
-      ...current,
-      [activeFilter]: false,
-    }));
+    const loadNext = async (index: number) => {
+      if (cancelled || index >= filters.length) {
+        return;
+      }
 
-    fetch(`/api/lobby/section?${params.toString()}`, {
-      headers: {
-        Accept: "application/json",
-      },
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error(`Lobby section request failed: ${response.status}`);
-        }
+      await loadDeferredSection(filters[index]);
 
-        return (await response.json()) as LobbySectionResponse;
-      })
-      .then((payload) => {
-        if (cancelled) {
-          return;
-        }
+      if (!cancelled) {
+        timerId = window.setTimeout(() => {
+          void loadNext(index + 1);
+        }, 450);
+      }
+    };
 
-        if (!payload.ok) {
-          throw new Error("Lobby section payload was not ok.");
-        }
-
-        setLazySections((current) => ({
-          ...current,
-          [activeFilter]: payload.activities ?? [],
-        }));
-      })
-      .catch((error: unknown) => {
-        if (cancelled) {
-          return;
-        }
-
-        console.error("Failed to load lobby section", error);
-        setFailedFilters((current) => ({
-          ...current,
-          [activeFilter]: true,
-        }));
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoadingFilter((current) =>
-            current === activeFilter ? null : current,
-          );
-        }
-      });
+    timerId = window.setTimeout(() => {
+      void loadNext(0);
+    }, 1100);
 
     return () => {
       cancelled = true;
+
+      if (timerId !== null) {
+        window.clearTimeout(timerId);
+      }
     };
-  }, [activeFilter, deferredFilterSet, lazySections, loadingFilter]);
+  }, [deferredFilterKey, deferredFilters, loadDeferredSection]);
 
   useEffect(() => {
     if (page > totalPages) {
@@ -982,31 +1056,42 @@ export function ActivityLobbyView({
   }, [page, totalPages]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <DetailSourceRestore sourceKey="lobby" />
+      <ActivitySwipeDiscovery
+        activities={swipeActivities}
+        className="sm:hidden"
+        isAuthenticated
+        locale={locale}
+        sourceSurface="activity_list"
+        variant="lobby"
+      />
       <section>
-        <div className="flex flex-col gap-2.5 sm:gap-3">
+        <div className="flex flex-col gap-1.5 sm:gap-3">
           <div className="flex flex-col gap-1 px-1 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
             <h1 className="sr-only">{t.title}</h1>
             <div>
-              <p className="text-sm font-semibold text-ink">
+              <p className="text-[13px] font-semibold leading-5 text-ink sm:text-sm">
                 {filterCopy.title}
               </p>
               <p className="mt-0.5 hidden text-xs leading-5 text-zinc-500 min-[430px]:block sm:text-sm">
                 {t.description}
               </p>
             </div>
-            <p className="text-xs font-medium text-zinc-500">
+            <p className="text-[11px] font-medium leading-4 text-zinc-500 sm:text-xs">
               {activeCategoryLabel} ·{" "}
               {getStatusFilterLabel(locale, activeStatusFilter)} ·{" "}
               {visibleActivities.length}
             </p>
           </div>
 
-          <div className="grid gap-2 sm:gap-2">
+          <div className="grid gap-1.5 sm:gap-2">
             <FilterGroupRow label={filterCopy.category}>
               {filterOptions.map((option) => {
                 const active = option.id === activeFilter;
+                const pending = option.count === null;
+                const optionLoading = pending && loadingFilter === option.id;
+                const optionFailed = pending && Boolean(failedFilters[option.id]);
 
                 return (
                   <button
@@ -1018,23 +1103,29 @@ export function ActivityLobbyView({
                       setActiveStatusFilter("all");
                     }}
                     className={cn(
-                      "inline-flex h-8 min-w-0 items-center justify-center gap-1 rounded-full border px-2 text-[11px] font-medium transition sm:h-9 sm:shrink-0 sm:gap-1.5 sm:px-3.5 sm:text-sm",
+                      "inline-flex h-7 max-w-[8.75rem] shrink-0 items-center justify-center gap-1 rounded-full border px-2.5 text-[11px] font-medium transition sm:h-9 sm:max-w-none sm:gap-1.5 sm:px-3.5 sm:text-sm",
                       active
                         ? "border-[#b8cda8] bg-[#e4efd9] text-[#526a39] shadow-[0_3px_8px_rgba(96,124,69,0.1)]"
                         : "border-sand bg-white/86 text-[#665c51] hover:border-sand-strong hover:bg-white",
                     )}
                   >
                     <span className="min-w-0 truncate">{option.label}</span>
-                    <span
-                      className={cn(
-                        "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold sm:px-2 sm:text-xs",
-                        active
-                          ? "bg-white/78 text-[#526a39]"
-                          : "bg-[#f3ecdf] text-[#8a7a65]",
-                      )}
-                    >
-                      {option.count === null ? "..." : option.count}
-                    </span>
+                    {!pending || optionLoading || optionFailed ? (
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold sm:px-2 sm:text-xs",
+                          active
+                            ? "bg-white/78 text-[#526a39]"
+                            : "bg-[#f3ecdf] text-[#8a7a65]",
+                        )}
+                      >
+                        {optionFailed
+                          ? "!"
+                          : optionLoading
+                            ? "..."
+                            : option.count}
+                      </span>
+                    ) : null}
                   </button>
                 );
               })}
@@ -1051,7 +1142,7 @@ export function ActivityLobbyView({
                     aria-pressed={active}
                     onClick={() => setActiveStatusFilter(option.id)}
                     className={cn(
-                      "inline-flex h-8 min-w-0 items-center justify-center gap-1 rounded-full border px-2 text-[11px] font-medium transition sm:h-9 sm:shrink-0 sm:gap-1.5 sm:px-3 sm:text-sm",
+                      "inline-flex h-7 max-w-[8.75rem] shrink-0 items-center justify-center gap-1 rounded-full border px-2.5 text-[11px] font-medium transition sm:h-9 sm:max-w-none sm:gap-1.5 sm:px-3 sm:text-sm",
                       active
                         ? "border-[#d0b58b] bg-[#f1dfb6] text-[#76552a]"
                         : "border-sand bg-team-bg text-[#776b5f] hover:border-sand-strong",

@@ -3,6 +3,7 @@ import { z } from "zod";
 export const analyticsEventNames = [
   "activity_list_viewed",
   "activity_card_clicked",
+  "activity_swipe_viewed",
   "public_event_detail_viewed",
   "activity_detail_viewed",
   "team_create_started",
@@ -125,6 +126,9 @@ const requiredByEvent: Partial<
   >
 > = {
   activity_card_clicked: {
+    topLevel: ["entityType", "entityId", "sourceSurface"],
+  },
+  activity_swipe_viewed: {
     topLevel: ["entityType", "entityId", "sourceSurface"],
   },
   public_event_detail_viewed: {
