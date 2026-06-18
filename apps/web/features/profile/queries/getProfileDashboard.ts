@@ -33,11 +33,6 @@ const publicProfileSelect = {
   status: true,
 } satisfies Prisma.UserProfileSelect;
 
-const privateProfileSelect = {
-  ...publicProfileSelect,
-  wechatId: true,
-} satisfies Prisma.UserProfileSelect;
-
 const profileParticipationSelect = {
   id: true,
   status: true,
@@ -105,7 +100,6 @@ export type PublicProfileViewModel = {
   friendCode: string | null;
   avatarUrl: string | null;
   bio: string | null;
-  wechatId?: string | null;
 };
 
 export type ProfileFollowUserViewModel = {
@@ -130,7 +124,6 @@ function mapPublicProfile(profile: {
   friendCode: string | null;
   avatarUrl: string | null;
   bio: string | null;
-  wechatId?: string | null;
 }): PublicProfileViewModel {
   const hasPublicNickname = profile.nickname.trim().length > 0;
 
@@ -144,7 +137,6 @@ function mapPublicProfile(profile: {
     friendCode: profile.friendCode,
     avatarUrl: hasPublicNickname ? profile.avatarUrl : null,
     bio: profile.bio,
-    wechatId: profile.wechatId,
   };
 }
 
@@ -691,14 +683,14 @@ export async function getPublicProfileById(
     includePrivateFields?: boolean;
   } = {},
 ): Promise<PublicProfileViewModel | null> {
+  void options;
+
   const profile = await prisma.userProfile.findFirst({
     where: {
       id: profileId,
       status: "ACTIVE",
     },
-    select: options.includePrivateFields
-      ? privateProfileSelect
-      : publicProfileSelect,
+    select: publicProfileSelect,
   });
 
   return profile ? mapPublicProfile(profile) : null;

@@ -57,6 +57,7 @@ export default async function LocaleLayout({
             showNotificationNav={Boolean(viewerProfile)}
             showAdminNav={viewerState.showAdminNav}
             viewerFriendCode={viewerProfile?.friendCode ?? null}
+            viewerWechatId={viewerProfile?.wechatId ?? null}
             viewerNickname={viewerProfile?.nickname ?? null}
             incomingFriendRequests={[]}
             unreadNotificationCount={0}

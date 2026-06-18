@@ -14,7 +14,6 @@ type ProfileIdentityFormProps = {
   friendCode: string;
   locale: string;
   nickname: string;
-  wechatId?: string | null;
 };
 
 const initialState: UpdateProfileIdentityState = {};
@@ -23,7 +22,6 @@ export function ProfileIdentityForm({
   friendCode,
   locale,
   nickname,
-  wechatId = null,
 }: ProfileIdentityFormProps) {
   const [state, formAction] = useActionState(
     updateProfileIdentityAction,
@@ -31,7 +29,6 @@ export function ProfileIdentityForm({
   );
   const [editing, setEditing] = useState(false);
   const [nicknameValue, setNicknameValue] = useState(nickname);
-  const [wechatValue, setWechatValue] = useState(wechatId ?? "");
   const [copied, setCopied] = useState(false);
   const t = getCopy(locale).profile;
   const editLabel =
@@ -45,8 +42,7 @@ export function ProfileIdentityForm({
 
   useEffect(() => {
     setNicknameValue(nickname);
-    setWechatValue(wechatId ?? "");
-  }, [nickname, wechatId]);
+  }, [nickname]);
 
   async function copyFriendCode() {
     try {
@@ -117,22 +113,6 @@ export function ProfileIdentityForm({
               className="h-10 bg-white"
               onChange={(event) => setNicknameValue(event.target.value)}
             />
-          </label>
-          <label className="grid gap-1.5">
-            <span className="text-xs font-medium text-zinc-500">
-              {t.wechatLabel}
-            </span>
-            <Input
-              name="wechatId"
-              value={wechatValue}
-              maxLength={80}
-              placeholder={t.wechatPlaceholder}
-              className="h-10 bg-white"
-              onChange={(event) => setWechatValue(event.target.value)}
-            />
-            <span className="text-xs leading-5 text-zinc-500">
-              {t.wechatHint}
-            </span>
           </label>
           {state.formError ? (
             <p className="text-xs text-red-600">{state.formError}</p>
