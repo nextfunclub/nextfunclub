@@ -296,6 +296,7 @@ type LayoutViewerProfile = {
   friendCode: string | null;
   id: string;
   nickname: string;
+  wechatId: string | null;
 };
 
 type LayoutViewerState = {
@@ -308,6 +309,7 @@ function getLayoutViewerProfile(profile: LayoutViewerProfile) {
     friendCode: profile.friendCode,
     id: profile.id,
     nickname: profile.nickname,
+    wechatId: profile.wechatId,
   };
 }
 
@@ -349,6 +351,7 @@ export async function getOptionalLayoutViewerState(): Promise<LayoutViewerState>
       nickname: true,
       role: true,
       status: true,
+      wechatId: true,
     },
   });
 
