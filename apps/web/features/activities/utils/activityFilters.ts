@@ -1,10 +1,16 @@
 import { activityCategories, type ActivityCategory } from "@chill-club/shared";
 
 export const activityFilterTypes = ["LOCAL", "TRIP"] as const;
-export const activitySortOptions = [
-  "recommended",
+export const activityCardSortOptions = [
   "soonest",
   "latest",
+  "shortDuration",
+  "longDuration",
+] as const;
+
+export const activitySortOptions = [
+  ...activityCardSortOptions,
+  "recommended",
   "recentlyAdded",
 ] as const;
 export const activityDateRangeOptions = [
@@ -26,6 +32,7 @@ export const activityRelationFilters = [
 export const activityListViewModes = ["card", "date"] as const;
 
 export type ActivityFilterType = (typeof activityFilterTypes)[number];
+export type ActivityCardSortOption = (typeof activityCardSortOptions)[number];
 export type ActivitySortOption = (typeof activitySortOptions)[number];
 export type ActivityDateRange = (typeof activityDateRangeOptions)[number];
 export type ActivityTimeState = (typeof activityTimeStates)[number];
@@ -40,7 +47,7 @@ export type ActivityFilters = {
   keyword?: string;
   page: number;
   relation: ActivityRelationFilter;
-  sort: ActivitySortOption;
+  sort: ActivityCardSortOption;
   timeState?: ActivityTimeState;
   type?: ActivityFilterType;
   viewMode: ActivityListViewMode;
@@ -217,15 +224,25 @@ export function getActiveActivityFilterCount(filters: {
   return getActiveActivityFilterNames(filters).length;
 }
 
-export function getDefaultActivitySort(filters: {
+export function getDefaultActivitySort(_filters?: {
   category?: unknown;
   city?: unknown;
   dateRange?: unknown;
   keyword?: unknown;
   timeState?: unknown;
   type?: unknown;
-}): ActivitySortOption {
-  return hasActiveActivityFilters(filters) ? "soonest" : "recommended";
+}): ActivityCardSortOption {
+  return "soonest";
+}
+
+function normalizeLegacyActivitySort(
+  sort: ActivitySortOption,
+): ActivityCardSortOption {
+  if (sort === "recommended" || sort === "recentlyAdded") {
+    return "soonest";
+  }
+
+  return sort;
 }
 
 export function normalizeActivityFilters(
@@ -258,6 +275,7 @@ export function normalizeActivityFilterValues(
   const timeState = getStringValue(values.timeState);
   const sort = getStringValue(values.sort);
   const view = getStringValue(values.view ?? values.viewMode);
+  const viewMode = view && isActivityListViewMode(view) ? view : "card";
   const filters = {
     category: category && isActivityCategory(category) ? category : undefined,
     city,
@@ -269,16 +287,18 @@ export function normalizeActivityFilterValues(
     timeState:
       timeState && isActivityTimeState(timeState) ? timeState : undefined,
     type: type && isActivityFilterType(type) ? type : undefined,
-    viewMode: view && isActivityListViewMode(view) ? view : "card",
+    viewMode,
   };
+  const resolvedSort =
+    sort && isActivitySortOption(sort)
+      ? normalizeLegacyActivitySort(sort)
+      : getDefaultActivitySort(filters);
 
   return {
     ...filters,
     page: normalizePageParam(page),
-    sort:
-      sort && isActivitySortOption(sort)
-        ? sort
-        : getDefaultActivitySort(filters),
+    sort: resolvedSort,
+    viewMode,
   };
 }
 

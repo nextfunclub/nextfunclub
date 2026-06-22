@@ -7,6 +7,7 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PaginationControl } from "@/components/ui/PaginationControl";
 import { ActivityAgendaList } from "@/features/activities/components/ActivityAgendaList";
+import { ActivityCardSortSelect } from "@/features/activities/components/ActivityCardSortSelect";
 import { ActivityCard } from "@/features/activities/components/ActivityCard";
 import { ActivityFilters } from "@/features/activities/components/ActivityFilters";
 import { DetailSourceRestore } from "@/features/navigation/components/DetailSourceRestore";
@@ -19,6 +20,7 @@ import {
   getActiveActivityFilterCount,
   getActiveActivityFilterNames,
   getActivityFilterHref,
+  getDefaultActivitySort,
   hasActiveActivityFilters,
   isCanonicalActivityFilterSearchParams,
   normalizeActivityFilters,
@@ -156,7 +158,10 @@ function ActivityPagination({
         dateRange: filters.dateRange,
         q: filters.keyword,
         relation: filters.relation !== "ALL" ? filters.relation : undefined,
-        sort: filters.sort !== "recommended" ? filters.sort : undefined,
+        sort:
+          filters.sort !== getDefaultActivitySort(filters)
+            ? filters.sort
+            : undefined,
         time: filters.timeState,
         type: filters.type,
         view: filters.viewMode !== "card" ? filters.viewMode : undefined,
@@ -390,18 +395,17 @@ export default async function ActivitiesPage({
                 )}
               </p>
             </div>
-            <ActivityListViewToggle filters={filters} locale={locale} />
+            <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+              <ActivityCardSortSelect filters={filters} locale={locale} />
+              <ActivityListViewToggle filters={filters} locale={locale} />
+            </div>
           </div>
 
           {filters.viewMode === "date" ? (
             <ActivityAgendaList
               activities={activitiesResult.list.activities}
               locale={locale}
-              sortDirection={
-                filters.sort === "latest" || filters.timeState === "ENDED"
-                  ? "desc"
-                  : "asc"
-              }
+              sort={filters.sort}
               totalCount={activitiesResult.list.totalCount}
             />
           ) : (

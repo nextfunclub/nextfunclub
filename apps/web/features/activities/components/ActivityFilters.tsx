@@ -30,7 +30,6 @@ import {
   type ActivityFilters,
   type ActivityFilterType,
   type ActivityRelationFilter,
-  type ActivitySortOption,
   type ActivityTimeState,
 } from "../utils/activityFilters";
 
@@ -67,9 +66,7 @@ export function ActivityFilters({
     ? Array.from(new Set([selectedCity, ...cities]))
     : cities;
   const hasActiveFilters = hasActiveActivityFilters(filters);
-  const defaultSort = getDefaultActivitySort(filters);
-  const hasCustomFilterState =
-    hasActiveFilters || filters.sort !== defaultSort || filters.page > 1;
+  const hasCustomFilterState = hasActiveFilters || filters.page > 1;
   const resetHref =
     filters.viewMode === "card"
       ? activitiesHref
@@ -166,21 +163,6 @@ export function ActivityFilters({
           },
         ]
       : []),
-    ...(filters.sort !== defaultSort
-      ? [
-          {
-            href: buildFilterHref({ sort: undefined }),
-            label:
-              filters.sort === "latest"
-                ? t.activityFilters.sortLatest
-                : filters.sort === "recentlyAdded"
-                  ? t.activityFilters.sortRecentlyAdded
-                : filters.sort === "recommended"
-                  ? t.activityFilters.sortRecommended
-                  : t.activityFilters.sortSoonest,
-          },
-        ]
-      : []),
   ];
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -256,8 +238,8 @@ export function ActivityFilters({
           className={cn(
             "grid grid-cols-2 gap-2.5 sm:gap-3",
             publicInfoOnly
-              ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.05fr)_minmax(0,1fr)_minmax(0,1fr)]"
-              : "sm:grid-cols-2 xl:grid-cols-6",
+              ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.05fr)_minmax(0,1fr)]"
+              : "sm:grid-cols-2 xl:grid-cols-5",
           )}
         >
           <label className={fieldLabelClassName}>
@@ -400,29 +382,6 @@ export function ActivityFilters({
                   {t.activityLabels.timeStates[timeState]}
                 </option>
               ))}
-            </select>
-          </label>
-
-          <label className={fieldLabelClassName}>
-            {t.activityFilters.sortLabel}
-            <select
-              className={selectClassName}
-              defaultValue={filters.sort}
-              name="sort"
-              onChange={(event) =>
-                applyFilterChange({
-                  sort: event.target.value as ActivitySortOption,
-                })
-              }
-            >
-              <option value="recommended">
-                {t.activityFilters.sortRecommended}
-              </option>
-              <option value="soonest">{t.activityFilters.sortSoonest}</option>
-              <option value="latest">{t.activityFilters.sortLatest}</option>
-              <option value="recentlyAdded">
-                {t.activityFilters.sortRecentlyAdded}
-              </option>
             </select>
           </label>
         </div>
