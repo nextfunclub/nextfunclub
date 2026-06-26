@@ -657,7 +657,7 @@ export function ActivitySwipeDiscovery({
                         {copy.detail}
                       </Link>
                       <PublicEventFavoriteButton
-                        className="h-10 w-10 bg-white text-coral ring-[#dfceb0] hover:bg-[#fffaf4]"
+                        className="size-10 min-h-10 min-w-10 bg-white text-coral ring-[#dfceb0] hover:bg-[#fffaf4]"
                         favoriteCount={activity.favoriteCount}
                         isAuthenticated={isAuthenticated}
                         isFavorited={Boolean(activity.isFavorited)}
